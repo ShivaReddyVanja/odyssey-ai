@@ -7,6 +7,9 @@ from src.agents.prompts import (
     CAPTAIN_COMPILATION_SUB_PROMPT
 )
 
+from langchain_core.runnables import RunnableConfig
+from src.utils.logger import log_agent
+
 # Output schema for Captain compilation
 class CaptainCompilationOutput(BaseModel):
     itinerary: FullItinerary
@@ -15,7 +18,7 @@ class CaptainCompilationOutput(BaseModel):
         description="Any warnings regarding transit distances, times, or closed venue hours"
     )
 
-def captain_node(state: AgentState) -> Dict[str, Any]:
+def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
     Captain Node:
     - If any candidate lists (transit, accommodation, food, activities) are empty, 
@@ -30,11 +33,11 @@ def captain_node(state: AgentState) -> Dict[str, Any]:
     
     # Check if we have gathered all candidates. If not, pass through.
     if not (transit_options and accommodation_options and food_options and activity_options):
-        print("[Captain Orchestrator] Candidates are still being gathered. Routing to next subagent.")
+        log_agent(config, "[Captain Orchestrator] Candidates are still being gathered. Routing to next subagent.")
         return {}
         
-    print("[Captain Orchestrator] All candidates gathered. Initiating Phase 5: Itinerary Compilation...")
-    print("[Captain Orchestrator] Compiling final itinerary structure and verifying guardrails (this can take 30-60 seconds)...")
+    log_agent(config, "[Captain Orchestrator] All candidates gathered. Initiating Phase 5: Itinerary Compilation...")
+    log_agent(config, "[Captain Orchestrator] Compiling final itinerary structure and verifying guardrails (this can take 30-60 seconds)...")
     
     # 1. Format workspace details
     parsed_params = state.get("parsed_parameters", {})

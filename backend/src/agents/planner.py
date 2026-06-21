@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field
 from src.graph.state import AgentState, DestinationAllocation
 from src.agents.base import generate_structured_output
 from src.agents.prompts import PLANNER_SYSTEM_PROMPT
-from src.tools.search_helper import google_search_snippets
+from langchain_core.runnables import RunnableConfig
+from src.utils.logger import log_agent
 
 # 1. Output Schemas for the Planner ReAct step
 class SearchAction(BaseModel):
@@ -20,7 +21,7 @@ class PlannerStep(BaseModel):
     action: Optional[SearchAction] = Field(None, description="Provide this if you need to run a Google search to verify routing, airport details, or destinations.")
     final_plan: Optional[FinalPlanning] = Field(None, description="Provide this ONLY when you are satisfied and have all the information required to build the final plan.")
 
-def planner_node(state: AgentState) -> Dict[str, Any]:
+def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
     Planner Node:
     - Analyzes regional prompts (e.g. 'North India' or 'Kerala') and travel themes.
@@ -34,7 +35,7 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
     theme = params.get("theme", "")
     style = params.get("travel_style", [])
 
-    print(f"\n[Planner Agent] Starting planning node for region: '{destination}' ({duration_days} days, theme: {theme})...")
+    log_agent(config, f"\n[Planner Agent] Starting planning node for region: '{destination}' ({duration_days} days, theme: {theme})...")
 
     # If it's a specific single city (e.g. Paris, Goa, Delhi, Tokyo, Rome, etc.), bypass the search loop
     # and directly allocate the entire duration to that single destination.
@@ -44,7 +45,7 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
     search_history = []
     
     for iteration in range(5):
-        print(f"[Planner Agent] ReAct Loop Iteration {iteration + 1}/5...")
+        log_agent(config, f"[Planner Agent] ReAct Loop Iteration {iteration + 1}/5...")
         
         # 1. Build context from search history
         history_context = ""
@@ -69,15 +70,15 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
                 output_schema=PlannerStep
             )
         except Exception as e:
-            print(f"[Planner Agent] LLM generation failed: {e}. Falling back to default single destination.")
+            log_agent(config, f"[Planner Agent] LLM generation failed: {e}. Falling back to default single destination.")
             break
 
-        print(f"[Planner Agent] Reasoning: {step.reasoning}")
+        log_agent(config, f"[Planner Agent] Reasoning: {step.reasoning}")
 
         # 3. Handle Google Search Action
         if step.action and not step.final_plan:
             query = step.action.query
-            print(f"[Planner Agent] Action: Querying Google Search for: '{query}'...")
+            log_agent(config, f"[Planner Agent] Action: Querying Google Search for: '{query}'...")
             search_results = google_search_snippets(query)
             search_history.append({
                 "query": query,
@@ -91,14 +92,14 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
             # Verify that the allocated duration sums up to the user's duration_days
             total_allocated = sum(dest.duration_days for dest in plan.ordered_destinations)
             if total_allocated != duration_days:
-                print(f"[Planner Agent] Warning: LLM allocated {total_allocated} days but user requested {duration_days} days. Adjusting the last destination to fit.")
+                log_agent(config, f"[Planner Agent] Warning: LLM allocated {total_allocated} days but user requested {duration_days} days. Adjusting the last destination to fit.")
                 # Automatically adjust the last destination's duration to satisfy the constraint
                 diff = duration_days - sum(dest.duration_days for dest in plan.ordered_destinations[:-1])
                 if len(plan.ordered_destinations) > 0:
                     plan.ordered_destinations[-1].duration_days = max(1, diff)
 
-            print(f"[Planner Agent] Planning Finalized! Destinations: {[d.destination for d in plan.ordered_destinations]} (Total Days: {duration_days})")
-            print(f"[Planner Agent] Explanation: {plan.explanation}")
+            log_agent(config, f"[Planner Agent] Planning Finalized! Destinations: {[d.destination for d in plan.ordered_destinations]} (Total Days: {duration_days})")
+            log_agent(config, f"[Planner Agent] Explanation: {plan.explanation}")
             
             # Update the theme in parsed parameters if a refined one is suggested
             refined_params = {**params}
@@ -111,7 +112,7 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
             }
 
     # Fallback to single destination if loop completes without a final plan
-    print(f"[Planner Agent] ReAct loop completed without final plan. Defaulting to single destination: '{destination}'")
+    log_agent(config, f"[Planner Agent] ReAct loop completed without final plan. Defaulting to single destination: '{destination}'")
     default_allocations = [DestinationAllocation(destination=destination, duration_days=duration_days)]
     return {
         "planned_destinations": default_allocations

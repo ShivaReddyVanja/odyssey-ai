@@ -1,16 +1,20 @@
 import uuid
+import json
+import asyncio
 from typing import Dict, Any, List, Optional, Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from langgraph.types import Command
 from src.agents.workflow import build_workflow
 from src.graph.state import FullItinerary
+from src.utils.logger import session_logger
 
 # Initialize FastAPI App
 app = FastAPI(
     title="NomadGraph API",
-    description="REST backend for LangGraph Multi-Agent Travel Planner Engine",
+    description="Real-time SSE backend for LangGraph Multi-Agent Travel Planner Engine",
     version="1.0.0"
 )
 
@@ -39,13 +43,6 @@ class ResumeRequest(BaseModel):
     thread_id: str = Field(..., description="Existing session thread ID to resume.")
     answers: Dict[str, str] = Field(..., description="Mapping of clarifying questions to answers.")
 
-class PlanResponse(BaseModel):
-    thread_id: str
-    status: Literal["interrupted", "completed", "failed"]
-    questions: Optional[List[str]] = None
-    itinerary: Optional[Dict[str, Any]] = None
-    validation_warnings: Optional[List[str]] = None
-
 class SessionResponse(BaseModel):
     thread_id: str
     is_validated: bool
@@ -65,12 +62,11 @@ def health_check():
     return {"status": "healthy", "service": "NomadGraph API"}
 
 
-@app.post("/api/plan/run", response_model=PlanResponse)
-def run_planner(request: RunRequest):
+@app.post("/api/plan/run")
+async def run_planner(request: RunRequest):
     """
     Initializes a new travel planning session or starts a run on a thread.
-    If the Gatekeeper node requires more information, it triggers an interrupt
-    and returns the clarifying questions.
+    Returns a Server-Sent Events (SSE) streaming response of agent reasoning logs.
     """
     thread_id = request.thread_id or str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
@@ -87,44 +83,66 @@ def run_planner(request: RunRequest):
         "final_itinerary": None
     }
 
-    try:
-        # Run workflow
-        workflow_app.invoke(initial_input, config=config)
+    async def event_generator():
+        # Register a log queue for this thread_id
+        queue = session_logger.register(thread_id)
         
-        # Retrieve post-run state
-        thread_state = workflow_app.get_state(config)
-        tasks = thread_state.tasks
+        # Start graph execution in a background task
+        task = asyncio.create_task(workflow_app.ainvoke(initial_input, config=config))
         
-        # Check if the graph is currently suspended on an interrupt
-        has_interrupts = len(tasks) > 0 and len(tasks[0].interrupts) > 0
-        
-        if has_interrupts:
-            questions = tasks[0].interrupts[0].value
-            return PlanResponse(
-                thread_id=thread_id,
-                status="interrupted",
-                questions=questions
-            )
-        
-        # If no interrupts, graph ran to completion
-        values = thread_state.values
-        itinerary = values.get("final_itinerary")
-        
-        return PlanResponse(
-            thread_id=thread_id,
-            status="completed",
-            itinerary=itinerary.model_dump() if itinerary else None,
-            validation_warnings=values.get("validation_warnings")
-        )
+        try:
+            # Yield log events in real-time while the graph is executing
+            while not task.done():
+                try:
+                    # Wait up to 0.1 seconds for new log messages
+                    log_msg = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                except asyncio.TimeoutError:
+                    pass
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Graph execution failed: {str(e)}")
+            # Drain any remaining logs in the queue
+            while not queue.empty():
+                log_msg = queue.get_nowait()
+                yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+
+            # Check if the execution failed
+            if task.exception():
+                err = task.exception()
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Graph execution failed: {str(err)}'})}\n\n"
+                return
+
+            # Check post-run state checkpoints
+            thread_state = workflow_app.get_state(config)
+            tasks = thread_state.tasks
+            has_interrupts = len(tasks) > 0 and len(tasks[0].interrupts) > 0
+
+            if has_interrupts:
+                questions = tasks[0].interrupts[0].value
+                yield f"data: {json.dumps({'type': 'interrupt', 'thread_id': thread_id, 'questions': questions})}\n\n"
+            else:
+                values = thread_state.values
+                itinerary = values.get("final_itinerary")
+                yield f"data: {json.dumps({
+                    'type': 'completed',
+                    'thread_id': thread_id,
+                    'itinerary': itinerary.model_dump() if itinerary else None,
+                    'validation_warnings': values.get('validation_warnings', [])
+                }, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Streaming server error: {str(e)}'})}\n\n"
+        finally:
+            # Unregister queue to clean up resources
+            session_logger.unregister(thread_id)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-@app.post("/api/plan/resume", response_model=PlanResponse)
-def resume_planner(request: ResumeRequest):
+@app.post("/api/plan/resume")
+async def resume_planner(request: ResumeRequest):
     """
     Resumes a suspended thread by submitting the user's answers to the clarifying questions.
+    Returns a Server-Sent Events (SSE) streaming response of remaining agent reasoning logs.
     """
     config = {"configurable": {"thread_id": request.thread_id}}
     
@@ -137,36 +155,56 @@ def resume_planner(request: ResumeRequest):
     if not (len(tasks) > 0 and len(tasks[0].interrupts) > 0):
         raise HTTPException(status_code=400, detail="The specified session is not in an interrupted state.")
 
-    try:
-        # Resume workflow by sending Command(resume=answers)
-        workflow_app.invoke(Command(resume=request.answers), config=config)
+    async def event_generator():
+        # Register a log queue for this thread_id
+        queue = session_logger.register(request.thread_id)
         
-        # Retrieve post-resume state
-        new_state = workflow_app.get_state(config)
-        new_tasks = new_state.tasks
+        # Start graph resumption in a background task
+        task = asyncio.create_task(workflow_app.ainvoke(Command(resume=request.answers), config=config))
         
-        # Check if it hit another interrupt
-        if len(new_tasks) > 0 and len(new_tasks[0].interrupts) > 0:
-            questions = new_tasks[0].interrupts[0].value
-            return PlanResponse(
-                thread_id=request.thread_id,
-                status="interrupted",
-                questions=questions
-            )
-            
-        # Completed execution
-        values = new_state.values
-        itinerary = values.get("final_itinerary")
-        
-        return PlanResponse(
-            thread_id=request.thread_id,
-            status="completed",
-            itinerary=itinerary.model_dump() if itinerary else None,
-            validation_warnings=values.get("validation_warnings")
-        )
+        try:
+            # Yield log events in real-time while the graph is resuming
+            while not task.done():
+                try:
+                    log_msg = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                except asyncio.TimeoutError:
+                    pass
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to resume graph: {str(e)}")
+            # Drain any remaining logs in the queue
+            while not queue.empty():
+                log_msg = queue.get_nowait()
+                yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+
+            # Check if the execution failed
+            if task.exception():
+                err = task.exception()
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to resume graph: {str(err)}'})}\n\n"
+                return
+
+            # Check post-resume state checkpoints
+            new_state = workflow_app.get_state(config)
+            new_tasks = new_state.tasks
+            
+            if len(new_tasks) > 0 and len(new_tasks[0].interrupts) > 0:
+                questions = new_tasks[0].interrupts[0].value
+                yield f"data: {json.dumps({'type': 'interrupt', 'thread_id': request.thread_id, 'questions': questions})}\n\n"
+            else:
+                values = new_state.values
+                itinerary = values.get("final_itinerary")
+                yield f"data: {json.dumps({
+                    'type': 'completed',
+                    'thread_id': request.thread_id,
+                    'itinerary': itinerary.model_dump() if itinerary else None,
+                    'validation_warnings': values.get('validation_warnings', [])
+                }, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Streaming server error: {str(e)}'})}\n\n"
+        finally:
+            session_logger.unregister(request.thread_id)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/api/plan/session/{thread_id}", response_model=SessionResponse)
