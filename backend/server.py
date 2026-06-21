@@ -94,16 +94,22 @@ async def run_planner(request: RunRequest):
             # Yield log events in real-time while the graph is executing
             while not task.done():
                 try:
-                    # Wait up to 0.1 seconds for new log messages
-                    log_msg = await asyncio.wait_for(queue.get(), timeout=0.1)
-                    yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                    # Wait up to 0.1 seconds for new messages or events
+                    item = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    if isinstance(item, dict):
+                        yield f"data: {json.dumps(item)}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'log', 'message': item})}\n\n"
                 except asyncio.TimeoutError:
                     pass
 
-            # Drain any remaining logs in the queue
+            # Drain any remaining logs/events in the queue
             while not queue.empty():
-                log_msg = queue.get_nowait()
-                yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                item = queue.get_nowait()
+                if isinstance(item, dict):
+                    yield f"data: {json.dumps(item)}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'log', 'message': item})}\n\n"
 
             # Check if the execution failed
             if task.exception():
@@ -166,15 +172,22 @@ async def resume_planner(request: ResumeRequest):
             # Yield log events in real-time while the graph is resuming
             while not task.done():
                 try:
-                    log_msg = await asyncio.wait_for(queue.get(), timeout=0.1)
-                    yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                    # Wait up to 0.1 seconds for new messages or events
+                    item = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    if isinstance(item, dict):
+                        yield f"data: {json.dumps(item)}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'log', 'message': item})}\n\n"
                 except asyncio.TimeoutError:
                     pass
 
-            # Drain any remaining logs in the queue
+            # Drain any remaining logs/events in the queue
             while not queue.empty():
-                log_msg = queue.get_nowait()
-                yield f"data: {json.dumps({'type': 'log', 'message': log_msg})}\n\n"
+                item = queue.get_nowait()
+                if isinstance(item, dict):
+                    yield f"data: {json.dumps(item)}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'log', 'message': item})}\n\n"
 
             # Check if the execution failed
             if task.exception():

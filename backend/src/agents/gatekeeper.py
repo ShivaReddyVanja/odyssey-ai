@@ -7,7 +7,7 @@ from src.agents.prompts import GATEKEEPER_SYSTEM_PROMPT
 from langgraph.types import interrupt
 
 from langchain_core.runnables import RunnableConfig
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
 
 # Pydantic schema for structured output extraction
 class GatekeeperExtraction(BaseModel):
@@ -33,6 +33,7 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
     3. When resumed, merges the user's answers and loops back to re-evaluate.
     4. Returns updates to the AgentState once validated.
     """
+    emit_event(config, {"type": "node_start", "node": "gatekeeper"})
     # Initialize local copy of clarification responses from state
     clarification_response = dict(state.get("clarification_response", {}))
     user_prompt_base = state.get("user_prompt", "")
@@ -84,6 +85,7 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
                 "budget_level": extraction.budget_level,
                 "travel_style": extraction.travel_style
             }
+            emit_event(config, {"type": "node_end", "node": "gatekeeper"})
             return {
                 "parsed_parameters": parsed_params,
                 "is_validated": True,
@@ -96,5 +98,6 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
         user_answers = interrupt(extraction.clarification_questions)
         
         # 7. Merge the user responses (dictionary: {question: answer}) and repeat loop
+        emit_event(config, {"type": "node_start", "node": "gatekeeper"})
         log_dev(config, f"[Gatekeeper Node Execution] Resumed. Received user answers: {user_answers}")
         clarification_response.update(user_answers)

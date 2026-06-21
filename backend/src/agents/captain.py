@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableConfig
 from src.graph.state import AgentState, FullItinerary, DayPlan, Place, TransitOption
 from src.agents.base import generate_structured_output, llm
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
 from src.agents.prompts import (
     CAPTAIN_MASTER_SYSTEM_PROMPT,
     CAPTAIN_COMPILATION_SUB_PROMPT
@@ -66,6 +66,7 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
       While compilation runs, it concurrently generates and streams conversational 
       thinking logs to the user to keep them engaged. Measures and logs step latency.
     """
+    emit_event(config, {"type": "node_start", "node": "captain"})
     node_start = time.perf_counter()
     transit_options = state.get("transit", [])
     accommodation_options = state.get("accommodation", [])
@@ -77,6 +78,7 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
     # Check if we have gathered all candidates. If not, pass through.
     if not (transit_options and accommodation_options and food_options and activity_options):
         log_dev(config, "[Captain Orchestrator] Candidates are still being gathered. Routing to next subagent.")
+        emit_event(config, {"type": "node_end", "node": "captain"})
         return {}
         
     log_agent(config, "All candidates gathered! Sequencing your itinerary...")
@@ -254,6 +256,7 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
     log_agent(config, "Itinerary successfully compiled!")
     log_dev(config, "[Captain Orchestrator] Final compilation and guardrail verification successful!")
     
+    emit_event(config, {"type": "node_end", "node": "captain"})
     return {
         "final_itinerary": full_itinerary,
         "validation_warnings": compilation.validation_warnings

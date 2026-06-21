@@ -5,7 +5,8 @@ from src.graph.state import AgentState, DestinationAllocation
 from src.agents.base import generate_structured_output
 from src.agents.prompts import PLANNER_SYSTEM_PROMPT
 from langchain_core.runnables import RunnableConfig
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
+from src.tools.search_helper import google_search_snippets
 
 # 1. Output Schemas for the Planner ReAct step
 class SearchAction(BaseModel):
@@ -29,6 +30,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
       travel routes, and geographical sequences.
     - Once satisfied, returns the ordered list of specific destinations and allocated days.
     """
+    emit_event(config, {"type": "node_start", "node": "planner"})
     params = state.get("parsed_parameters", {})
     destination = params.get("destination", "")
     duration_days = params.get("duration_days", 3)
@@ -119,6 +121,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             if plan.theme:
                 refined_params["theme"] = plan.theme
 
+            emit_event(config, {"type": "node_end", "node": "planner"})
             return {
                 "planned_destinations": plan.ordered_destinations,
                 "parsed_parameters": refined_params
@@ -127,6 +130,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     log_agent(config, f"Routing finalized! Planned destination breakdown:\n  • {destination} ({duration_days} days)")
     log_dev(config, f"[Planner Agent] ReAct loop completed without final plan. Defaulting to single destination: '{destination}'")
     default_allocations = [DestinationAllocation(destination=destination, duration_days=duration_days)]
+    emit_event(config, {"type": "node_end", "node": "planner"})
     return {
         "planned_destinations": default_allocations
     }

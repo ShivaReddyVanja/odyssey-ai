@@ -17,7 +17,7 @@ def get_next_date(date_str: str, days: int) -> str:
         return date_str
 
 from langchain_core.runnables import RunnableConfig
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
 
 def travel_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -25,6 +25,7 @@ def travel_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     Loops over the planned destinations list and fetches transit candidates for each segment of the journey
     (e.g., Origin -> Destination 1 -> Destination 2 -> Origin).
     """
+    emit_event(config, {"type": "node_start", "node": "travel"})
     params = state.get("parsed_parameters", {})
     origin = params.get("origin", "Delhi")
     start_date = params.get("start_date", "")
@@ -44,6 +45,12 @@ def travel_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             for opt in transit_options:
                 price_str = f"₹{int(opt.estimated_price):,}" if opt.estimated_price else "Price unavailable"
                 log_agent(config, f"  • {opt.carrier}: {opt.origin} -> {opt.destination} ({opt.departure_time} - {price_str})")
+        emit_event(config, {
+            "type": "candidates_discovered",
+            "category": "transit",
+            "candidates": [opt.model_dump() for opt in transit_options]
+        })
+        emit_event(config, {"type": "node_end", "node": "travel"})
         return {"transit": transit_options}
         
     transit_options = []
@@ -86,6 +93,12 @@ def travel_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             price_str = f"₹{int(opt.estimated_price):,}" if opt.estimated_price else "Price unavailable"
             log_agent(config, f"  • {opt.carrier}: {opt.origin} -> {opt.destination} ({opt.departure_time} - {price_str})")
             
+    emit_event(config, {
+        "type": "candidates_discovered",
+        "category": "transit",
+        "candidates": [opt.model_dump() for opt in transit_options]
+    })
+    emit_event(config, {"type": "node_end", "node": "travel"})
     return {
         "transit": transit_options
     }

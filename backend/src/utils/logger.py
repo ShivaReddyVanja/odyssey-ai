@@ -39,6 +39,13 @@ class SessionQueueManager:
             if self.loop and self.loop.is_running():
                 self.loop.call_soon_threadsafe(queue.put_nowait, message)
 
+    def log_event(self, thread_id: str, event_data: Dict[str, Any]):
+        """Pushes a structured event to the thread's queue (bypassing raw console prints)."""
+        queue = self.get_queue(thread_id)
+        if queue:
+            if self.loop and self.loop.is_running():
+                self.loop.call_soon_threadsafe(queue.put_nowait, event_data)
+
 # Global logger instance
 session_logger = SessionQueueManager()
 
@@ -65,3 +72,14 @@ def log_dev(config: Optional[Any], message: str):
     elif hasattr(config, "configurable"):
         thread_id = config.configurable.get("thread_id", "default")
     print(f"[Dev Log] [{thread_id}] {message}", flush=True)
+
+def emit_event(config: Optional[Any], event_data: Dict[str, Any]):
+    """
+    Emits a structured event to the client-facing SSE queue.
+    """
+    thread_id = "default"
+    if isinstance(config, dict):
+        thread_id = config.get("configurable", {}).get("thread_id", "default")
+    elif hasattr(config, "configurable"):
+        thread_id = config.configurable.get("thread_id", "default")
+    session_logger.log_event(thread_id, event_data)

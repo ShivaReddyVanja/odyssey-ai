@@ -3,13 +3,14 @@ from src.graph.state import AgentState
 from src.tools.places import search_activities
 
 from langchain_core.runnables import RunnableConfig
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
 
 def sightseeing_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
     Sightseeing Agent Node:
     Loops over all planned destinations and gathers candidate sightseeing options for each city.
     """
+    emit_event(config, {"type": "node_start", "node": "sightseeing"})
     params = state.get("parsed_parameters", {})
     styles = params.get("travel_style", [])
     planned_dests = state.get("planned_destinations", [])
@@ -28,6 +29,12 @@ def sightseeing_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any
             for spot in activity_options[:4]:
                 rating_str = f"{spot.rating}★" if spot.rating else "No rating"
                 log_agent(config, f"  • {spot.name} ({rating_str}) - {spot.location.address}")
+        emit_event(config, {
+            "type": "candidates_discovered",
+            "category": "activities",
+            "candidates": [opt.model_dump() for opt in activity_options]
+        })
+        emit_event(config, {"type": "node_end", "node": "sightseeing"})
         return {"activities": activity_options}
         
     activity_options = []
@@ -50,6 +57,12 @@ def sightseeing_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any
             rating_str = f"{spot.rating}★" if spot.rating else "No rating"
             log_agent(config, f"  • {spot.name} ({rating_str}) - {spot.location.address}")
             
+    emit_event(config, {
+        "type": "candidates_discovered",
+        "category": "activities",
+        "candidates": [opt.model_dump() for opt in activity_options]
+    })
+    emit_event(config, {"type": "node_end", "node": "sightseeing"})
     return {
         "activities": activity_options
     }

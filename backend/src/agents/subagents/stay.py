@@ -3,13 +3,14 @@ from src.graph.state import AgentState
 from src.tools.hotels import search_accommodation
 
 from langchain_core.runnables import RunnableConfig
-from src.utils.logger import log_agent, log_dev
+from src.utils.logger import log_agent, log_dev, emit_event
 
 def stay_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
     Stay Agent Node:
     Loops over all planned destinations and gathers candidate hotel options for each city.
     """
+    emit_event(config, {"type": "node_start", "node": "stay"})
     params = state.get("parsed_parameters", {})
     budget = params.get("budget_level", "mid_range")
     planned_dests = state.get("planned_destinations", [])
@@ -28,6 +29,12 @@ def stay_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             for spot in hotel_options[:4]:
                 rating_str = f"{spot.rating}★" if spot.rating else "No rating"
                 log_agent(config, f"  • {spot.name} ({rating_str}) - {spot.location.address}")
+        emit_event(config, {
+            "type": "candidates_discovered",
+            "category": "accommodation",
+            "candidates": [opt.model_dump() for opt in hotel_options]
+        })
+        emit_event(config, {"type": "node_end", "node": "stay"})
         return {"accommodation": hotel_options}
         
     hotel_options = []
@@ -50,6 +57,12 @@ def stay_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             rating_str = f"{spot.rating}★" if spot.rating else "No rating"
             log_agent(config, f"  • {spot.name} ({rating_str}) - {spot.location.address}")
             
+    emit_event(config, {
+        "type": "candidates_discovered",
+        "category": "accommodation",
+        "candidates": [opt.model_dump() for opt in hotel_options]
+    })
+    emit_event(config, {"type": "node_end", "node": "stay"})
     return {
         "accommodation": hotel_options
     }
