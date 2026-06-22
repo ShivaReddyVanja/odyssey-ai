@@ -18,7 +18,8 @@ class FinalPlanning(BaseModel):
     explanation: str = Field(..., description="A short explanation of why this multi-destination selection fits the user's requirements.")
 
 class PlannerStep(BaseModel):
-    reasoning: str = Field(..., description="Reasoning and thought process on what facts are needed or how to sequence the travel plan.")
+    reasoning: str = Field(..., description="Internal detailed reasoning and thought process on what facts are needed or how to sequence the travel plan.")
+    agent_log: str = Field(..., description="A friendly, conversational update (1 sentence) for the user describing what you are doing or thinking right now (e.g. 'Checking if Dharamshala is a good fit for spiritual retreats...').")
     action: Optional[SearchAction] = Field(None, description="Provide this if you need to run a Google search to verify routing, airport details, or destinations.")
     final_plan: Optional[FinalPlanning] = Field(None, description="Provide this ONLY when you are satisfied and have all the information required to build the final plan.")
 
@@ -47,8 +48,8 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     
     search_history = []
     
-    for iteration in range(5):
-        log_dev(config, f"[Planner Agent] ReAct Loop Iteration {iteration + 1}/5...")
+    for iteration in range(10):
+        log_dev(config, f"[Planner Agent] ReAct Loop Iteration {iteration + 1}/10...")
         
         # 1. Build context from search history
         history_context = ""
@@ -81,11 +82,12 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             break
 
         log_dev(config, f"[Planner Agent] Reasoning: {step.reasoning}")
+        if step.agent_log:
+            log_agent(config, f"💭 {step.agent_log}")
 
         # 3. Handle Google Search Action
         if step.action and not step.final_plan:
             query = step.action.query
-            log_agent(config, "Researching routes and local details...")
             log_dev(config, f"[Planner Agent] Action: Querying Google Search for: '{query}'...")
             import time
             search_start = time.perf_counter()
@@ -110,11 +112,33 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
                 if len(plan.ordered_destinations) > 0:
                     plan.ordered_destinations[-1].duration_days = max(1, diff)
 
-            log_agent(config, "Routing finalized! Planned destination breakdown:")
+            # Format the output beautifully as a premium card
+            route_lines = []
             for dest in plan.ordered_destinations:
-                log_agent(config, f"  • {dest.destination} ({dest.duration_days} days)")
+                route_lines.append(f"🗺️  {dest.destination} ({dest.duration_days} days)")
+            route_str = "\n".join(route_lines)
+            
+            final_card = (
+                f"📍 ROUTE DECIDED!\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"{route_str}\n"
+                f"✨ Vibe: {plan.theme or theme}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"Why this fits:\n"
+                f"{plan.explanation}"
+            )
+            log_agent(config, final_card)
+            
             log_dev(config, f"[Planner Agent] Planning Finalized! Destinations: {[d.destination for d in plan.ordered_destinations]} (Total Days: {duration_days})")
             log_dev(config, f"[Planner Agent] Explanation: {plan.explanation}")
+            
+            # Emit a structured event for the client
+            emit_event(config, {
+                "type": "planner_finalized",
+                "destinations": [dest.model_dump() if hasattr(dest, "model_dump") else dest for dest in plan.ordered_destinations],
+                "theme": plan.theme,
+                "explanation": plan.explanation
+            })
             
             # Update the theme in parsed parameters if a refined one is suggested
             refined_params = {**params}
@@ -127,9 +151,25 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
                 "parsed_parameters": refined_params
             }
 
-    log_agent(config, f"Routing finalized! Planned destination breakdown:\n  • {destination} ({duration_days} days)")
+    final_card = (
+        f"📍 ROUTE DECIDED!\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🗺️  {destination} ({duration_days} days)\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Defaulting to a single destination plan."
+    )
+    log_agent(config, final_card)
+    
     log_dev(config, f"[Planner Agent] ReAct loop completed without final plan. Defaulting to single destination: '{destination}'")
     default_allocations = [DestinationAllocation(destination=destination, duration_days=duration_days)]
+    
+    emit_event(config, {
+        "type": "planner_finalized",
+        "destinations": [{"destination": destination, "duration_days": duration_days}],
+        "theme": "Single Destination Exploration",
+        "explanation": "Defaulted to single destination plan."
+    })
+    
     emit_event(config, {"type": "node_end", "node": "planner"})
     return {
         "planned_destinations": default_allocations

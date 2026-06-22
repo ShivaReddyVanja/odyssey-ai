@@ -40,7 +40,6 @@ def get_airport_code(city_name: str, default: str = "DEL") -> str:
         
     city_key = city_name.strip().lower()
     if city_key in _AIRPORT_CODE_CACHE:
-        print(f"[Flights Tool] Airport code cache hit for '{city_name}': {_AIRPORT_CODE_CACHE[city_key]}", flush=True)
         return _AIRPORT_CODE_CACHE[city_key]
         
     import time
@@ -61,14 +60,12 @@ def get_airport_code(city_name: str, default: str = "DEL") -> str:
             output_schema=AirportCodeResolution
         )
         code = result.iata_code.strip().upper()
-        dur = time.perf_counter() - start_time
-        print(f"[Latency Metric] Resolving airport code for '{city_name}' (miss): {dur:.2f}s", flush=True)
         
         if len(code) == 3 and code.isalpha():
             _AIRPORT_CODE_CACHE[city_key] = code
             return code
     except Exception as e:
-        print(f"[Flights Tool] Dynamic airport code search failed for '{city_name}': {e}. Using default.", flush=True)
+        pass
         
     return default
 
@@ -145,34 +142,35 @@ def search_transit(origin: str, destination: str, start_date: str) -> List[Trans
         
         transit_options = []
         for i, flight_group in enumerate(best_flights[:2]):
-            # Get first flight segment details
+            # Get first and last flight segment details
             flights = flight_group.get("flights", [])
             if not flights:
                 continue
                 
-            flight = flights[0]
+            flight_start = flights[0]
+            flight_end = flights[-1]
             price = flight_group.get("price", 0)
             duration = flight_group.get("total_duration", 0)
             
             transit_options.append(
                 TransitOption(
                     id=f"flight_serp_{i+1}",
-                    origin=f"{flight.get('departure_airport', {}).get('name', origin)} ({flight.get('departure_airport', {}).get('id', origin_code)})",
-                    destination=f"{flight.get('arrival_airport', {}).get('name', destination)} ({flight.get('arrival_airport', {}).get('id', dest_code)})",
-                    departure_time=flight.get("departure_airport", {}).get("time", "12:00"),
-                    arrival_time=flight.get("arrival_airport", {}).get("time", "18:00"),
+                    origin=f"{flight_start.get('departure_airport', {}).get('name', origin)} ({flight_start.get('departure_airport', {}).get('id', origin_code)})",
+                    destination=f"{flight_end.get('arrival_airport', {}).get('name', destination)} ({flight_end.get('arrival_airport', {}).get('id', dest_code)})",
+                    departure_time=flight_start.get("departure_airport", {}).get("time", "12:00"),
+                    arrival_time=flight_end.get("arrival_airport", {}).get("time", "18:00"),
                     mode=TravelMode.FLIGHT,
                     duration_minutes=duration,
                     estimated_price=float(price) if price else None,
-                    carrier=flight.get("airline", "Airline")
+                    carrier=flight_start.get("airline", "Airline")
                 )
             )
             
         if not transit_options:
-            print(f"[Flights Tool] SerpAPI returned no flight offers. Returning dynamic fallback.")
-            return get_dynamic_transit(origin, destination, start_date)
+            print(f"[Flights Tool] SerpAPI returned no flight offers.")
+            return []
             
         return transit_options
     except Exception as e:
-        print(f"[Flights Tool] Query failed or timed out: {e}. Returning dynamic fallback transit.")
-        return get_dynamic_transit(origin, destination, start_date)
+        print(f"[Flights Tool] Query failed or timed out: {e}.")
+        return []
