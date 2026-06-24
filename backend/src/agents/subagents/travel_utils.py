@@ -98,20 +98,28 @@ def get_next_date(date_str: str, days: int) -> str:
 _coord_lock = threading.Lock()
 _COORDINATES_CACHE_FILE = "city_coordinates_cache.json"
 
+def get_cache_path(filename: str) -> str:
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cache_dir = os.path.join(project_root, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, filename)
+
 def _load_coordinates_cache() -> dict:
+    cache_file = get_cache_path(_COORDINATES_CACHE_FILE)
     with _coord_lock:
-        if os.path.exists(_COORDINATES_CACHE_FILE):
+        if os.path.exists(cache_file):
             try:
-                with open(_COORDINATES_CACHE_FILE, "r") as f:
+                with open(cache_file, "r") as f:
                     return json.load(f)
             except Exception:
                 pass
         return {}
 
 def _save_coordinates_cache(cache: dict):
+    cache_file = get_cache_path(_COORDINATES_CACHE_FILE)
     with _coord_lock:
         try:
-            with open(_COORDINATES_CACHE_FILE, "w") as f:
+            with open(cache_file, "w") as f:
                 json.dump(cache, f, indent=2)
         except Exception:
             pass

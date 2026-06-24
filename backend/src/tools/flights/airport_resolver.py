@@ -11,12 +11,19 @@ _AIRPORT_RESOLUTIONS_FILE = "airport_resolutions_cache.json"
 _AIRPORT_CODE_FILE = "airport_code_cache.json"
 _cache_lock = threading.Lock()
 
+def get_cache_path(filename: str) -> str:
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cache_dir = os.path.join(project_root, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, filename)
+
 def _load_json_cache(filename: str) -> dict:
     """Loads a JSON cache file from disk."""
+    cache_file = get_cache_path(filename)
     with _cache_lock:
-        if os.path.exists(filename):
+        if os.path.exists(cache_file):
             try:
-                with open(filename, "r") as f:
+                with open(cache_file, "r") as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -24,9 +31,10 @@ def _load_json_cache(filename: str) -> dict:
 
 def _save_json_cache(filename: str, data: dict):
     """Saves a JSON cache file to disk."""
+    cache_file = get_cache_path(filename)
     with _cache_lock:
         try:
-            with open(filename, "w") as f:
+            with open(cache_file, "w") as f:
                 json.dump(data, f, indent=2)
         except Exception:
             pass

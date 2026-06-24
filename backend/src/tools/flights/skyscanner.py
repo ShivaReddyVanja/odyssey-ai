@@ -10,15 +10,22 @@ import json
 
 import threading
 
-_SKYSCANNER_LOCATION_FILE = "skyscanner_location_cache.json"
+_SKYSCANNER_LOCATION_NAME = "skyscanner_location_cache.json"
 _location_cache_lock = threading.Lock()
+
+def get_cache_path(filename: str) -> str:
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cache_dir = os.path.join(project_root, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, filename)
 
 def _load_skyscanner_location_cache() -> dict:
     """Loads Skyscanner location cache from disk."""
+    cache_file = get_cache_path(_SKYSCANNER_LOCATION_NAME)
     with _location_cache_lock:
-        if os.path.exists(_SKYSCANNER_LOCATION_FILE):
+        if os.path.exists(cache_file):
             try:
-                with open(_SKYSCANNER_LOCATION_FILE, "r") as f:
+                with open(cache_file, "r") as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -26,9 +33,10 @@ def _load_skyscanner_location_cache() -> dict:
 
 def _save_skyscanner_location_cache(cache: dict):
     """Saves Skyscanner location cache from disk."""
+    cache_file = get_cache_path(_SKYSCANNER_LOCATION_NAME)
     with _location_cache_lock:
         try:
-            with open(_SKYSCANNER_LOCATION_FILE, "w") as f:
+            with open(cache_file, "w") as f:
                 json.dump(cache, f, indent=2)
         except Exception:
             pass
