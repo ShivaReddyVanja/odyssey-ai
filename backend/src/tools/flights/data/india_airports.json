@@ -1,0 +1,289 @@
+[
+  {
+    "name": "Indira Gandhi International Airport",
+    "iata": "DEL",
+    "state": "Delhi",
+    "city": "New Delhi",
+    "aliases": ["delhi", "new delhi", "indira gandhi"]
+  },
+  {
+    "name": "Chhatrapati Shivaji Maharaj International Airport",
+    "iata": "BOM",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "aliases": ["mumbai", "bombay", "chhatrapati shivaji"]
+  },
+  {
+    "name": "Kempegowda International Airport",
+    "iata": "BLR",
+    "state": "Karnataka",
+    "city": "Bengaluru",
+    "aliases": ["bengaluru", "bangalore", "kempegowda"]
+  },
+  {
+    "name": "Rajiv Gandhi International Airport",
+    "iata": "HYD",
+    "state": "Telangana",
+    "city": "Hyderabad",
+    "aliases": ["hyderabad", "rajiv gandhi"]
+  },
+  {
+    "name": "Chennai International Airport",
+    "iata": "MAA",
+    "state": "Tamil Nadu",
+    "city": "Chennai",
+    "aliases": ["chennai", "madras"]
+  },
+  {
+    "name": "Netaji Subhas Chandra Bose International Airport",
+    "iata": "CCU",
+    "state": "West Bengal",
+    "city": "Kolkata",
+    "aliases": ["kolkata", "calcutta", "netaji subhas"]
+  },
+  {
+    "name": "Sardar Vallabhbhai Patel International Airport",
+    "iata": "AMD",
+    "state": "Gujarat",
+    "city": "Ahmedabad",
+    "aliases": ["ahmedabad", "sardar vallabhbhai"]
+  },
+  {
+    "name": "Cochin International Airport",
+    "iata": "COK",
+    "state": "Kerala",
+    "city": "Kochi",
+    "aliases": ["kochi", "cochin", "ernakulam"]
+  },
+  {
+    "name": "Pune Airport",
+    "iata": "PNQ",
+    "state": "Maharashtra",
+    "city": "Pune",
+    "aliases": ["pune", "poona"]
+  },
+  {
+    "name": "Dabolim Airport",
+    "iata": "GOI",
+    "state": "Goa",
+    "city": "Dabolim",
+    "aliases": ["goa dabolim", "dabolim", "south goa"]
+  },
+  {
+    "name": "Manohar International Airport",
+    "iata": "GOX",
+    "state": "Goa",
+    "city": "Mopa",
+    "aliases": ["mopa", "goa mopa", "north goa", "manohar"]
+  },
+  {
+    "name": "Jaipur International Airport",
+    "iata": "JAI",
+    "state": "Rajasthan",
+    "city": "Jaipur",
+    "aliases": ["jaipur"]
+  },
+  {
+    "name": "Chaudhary Charan Singh International Airport",
+    "iata": "LKO",
+    "state": "Uttar Pradesh",
+    "city": "Lucknow",
+    "aliases": ["lucknow", "chaudhary charan singh"]
+  },
+  {
+    "name": "Thiruvananthapuram International Airport",
+    "iata": "TRV",
+    "state": "Kerala",
+    "city": "Thiruvananthapuram",
+    "aliases": ["thiruvananthapuram", "trivandrum"]
+  },
+  {
+    "name": "Lokpriya Gopinath Bordoloi International Airport",
+    "iata": "GAU",
+    "state": "Assam",
+    "city": "Guwahati",
+    "aliases": ["guwahati", "lokpriya gopinath"]
+  },
+  {
+    "name": "Devi Ahilyabai Holkar Airport",
+    "iata": "IDR",
+    "state": "Madhya Pradesh",
+    "city": "Indore",
+    "aliases": ["indore", "devi ahilyabai"]
+  },
+  {
+    "name": "Biju Patnaik International Airport",
+    "iata": "BBI",
+    "state": "Odisha",
+    "city": "Bhubaneswar",
+    "aliases": ["bhubaneswar", "biju patnaik"]
+  },
+  {
+    "name": "Dr. Babasaheb Ambedkar International Airport",
+    "iata": "NAG",
+    "state": "Maharashtra",
+    "city": "Nagpur",
+    "aliases": ["nagpur", "dr. babasaheb ambedkar"]
+  },
+  {
+    "name": "Calicut International Airport",
+    "iata": "CCJ",
+    "state": "Kerala",
+    "city": "Kozhikode",
+    "aliases": ["kozhikode", "calicut"]
+  },
+  {
+    "name": "Sri Guru Ram Dass Jee International Airport",
+    "iata": "ATQ",
+    "state": "Punjab",
+    "city": "Amritsar",
+    "aliases": ["amritsar", "sri guru ram dass"]
+  },
+  {
+    "name": "Sheikh ul-Alam International Airport",
+    "iata": "SXR",
+    "state": "Jammu and Kashmir",
+    "city": "Srinagar",
+    "aliases": ["srinagar", "sheikh ul-alam"]
+  },
+  {
+    "name": "Visakhapatnam International Airport",
+    "iata": "VTZ",
+    "state": "Andhra Pradesh",
+    "city": "Visakhapatnam",
+    "aliases": ["visakhapatnam", "vizag"]
+  },
+  {
+    "name": "Jay Prakash Narayan Airport",
+    "iata": "PAT",
+    "state": "Bihar",
+    "city": "Patna",
+    "aliases": ["patna", "jay prakash narayan"]
+  },
+  {
+    "name": "Coimbatore International Airport",
+    "iata": "CJB",
+    "state": "Tamil Nadu",
+    "city": "Coimbatore",
+    "aliases": ["coimbatore", "kovai"]
+  },
+  {
+    "name": "Bagdogra International Airport",
+    "iata": "IXB",
+    "state": "West Bengal",
+    "city": "Siliguri",
+    "aliases": ["siliguri", "bagdogra"]
+  },
+  {
+    "name": "Surat International Airport",
+    "iata": "STV",
+    "state": "Gujarat",
+    "city": "Surat",
+    "aliases": ["surat"]
+  },
+  {
+    "name": "Tiruchirappalli International Airport",
+    "iata": "TRZ",
+    "state": "Tamil Nadu",
+    "city": "Tiruchirappalli",
+    "aliases": ["tiruchirappalli", "trichy"]
+  },
+  {
+    "name": "Swami Vivekananda Airport",
+    "iata": "RPR",
+    "state": "Chhattisgarh",
+    "city": "Raipur",
+    "aliases": ["raipur", "swami vivekananda"]
+  },
+  {
+    "name": "Birsa Munda Airport",
+    "iata": "IXR",
+    "state": "Jharkhand",
+    "city": "Ranchi",
+    "aliases": ["ranchi", "birsa munda"]
+  },
+  {
+    "name": "Maharishi Valmiki International Airport",
+    "iata": "AYJ",
+    "state": "Uttar Pradesh",
+    "city": "Ayodhya",
+    "aliases": ["ayodhya", "maharishi valmiki"]
+  },
+  {
+    "name": "Lal Bahadur Shastri International Airport",
+    "iata": "VNS",
+    "state": "Uttar Pradesh",
+    "city": "Varanasi",
+    "aliases": ["varanasi", "lal bahadur shastri", "banaras"]
+  },
+  {
+    "name": "Mangaluru International Airport",
+    "iata": "IXE",
+    "state": "Karnataka",
+    "city": "Mangaluru",
+    "aliases": ["mangalore", "mangaluru"]
+  },
+  {
+    "name": "Madurai Airport",
+    "iata": "IXM",
+    "state": "Tamil Nadu",
+    "city": "Madurai",
+    "aliases": ["madurai"]
+  },
+  {
+    "name": "Chandigarh International Airport",
+    "iata": "IXC",
+    "state": "Chandigarh",
+    "city": "Chandigarh",
+    "aliases": ["chandigarh"]
+  },
+  {
+    "name": "Jodhpur Airport",
+    "iata": "JDH",
+    "state": "Rajasthan",
+    "city": "Jodhpur",
+    "aliases": ["jodhpur"]
+  },
+  {
+    "name": "Udaipur Airport",
+    "iata": "UDR",
+    "state": "Rajasthan",
+    "city": "Udaipur",
+    "aliases": ["udaipur"]
+  },
+  {
+    "name": "Dehradun Airport",
+    "iata": "DED",
+    "state": "Uttarakhand",
+    "city": "Dehradun",
+    "aliases": ["dehradun"]
+  },
+  {
+    "name": "Vadodara Airport",
+    "iata": "BDQ",
+    "state": "Gujarat",
+    "city": "Vadodara",
+    "aliases": ["vadodara", "baroda"]
+  },
+  {
+    "name": "Imphal International Airport",
+    "iata": "IMF",
+    "state": "Manipur",
+    "city": "Imphal",
+    "aliases": ["imphal"]
+  },
+  {
+    "name": "Veer Savarkar International Airport",
+    "iata": "IXZ",
+    "state": "Andaman and Nicobar Islands",
+    "city": "Port Blair",
+    "aliases": ["port blair", "veer savarkar"]
+  },
+  {
+    "name": "Raja Bhoj Airport",
+    "iata": "BHO",
+    "state": "Madhya Pradesh",
+    "city": "Bhopal",
+    "aliases": ["bhopal", "raja bhoj"]
+  }
+]

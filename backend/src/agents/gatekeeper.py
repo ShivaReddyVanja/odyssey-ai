@@ -43,7 +43,7 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
     system_prompt = GATEKEEPER_SYSTEM_PROMPT.format(current_date=current_date)
     
     while True:
-        log_agent(config, "Reviewing your travel details...")
+        log_agent(config, "I'm reviewing your travel request...")
         log_dev(config, f"[Gatekeeper Node Execution] Checking validation... Active responses: {clarification_response}")
         
         # 2. Format the clarification responses string
@@ -73,7 +73,7 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
         
         # 5. If validated, compile parameters and break loop to proceed to Captain
         if extraction.is_validated:
-            log_agent(config, "Got all details! Let me start planning your trip...")
+            log_agent(config, "I have all the details I need — starting to plan your trip.")
             log_dev(config, "[Gatekeeper Node Execution] Validation Successful! Routing to Captain.")
             # 5. Prepare parsed parameters for state updates
             parsed_params = {
@@ -93,7 +93,7 @@ def gatekeeper_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]
                 "clarification_response": clarification_response
             }
             
-        log_agent(config, "I need a few more details to plan your perfect trip...")
+        log_agent(config, "I need a few more details before I can start planning.")
         log_dev(config, f"[Gatekeeper Node Execution] Validation Failed. Pausing graph to ask: {extraction.clarification_questions}")
         user_answers = interrupt(extraction.clarification_questions)
         

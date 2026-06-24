@@ -200,20 +200,24 @@ export default function RoutePathPanel({ itinerary }: RoutePathPanelProps) {
   const getSegmentPathString = (i: number) => {
     const p1 = eventCoords[i];
     const p2 = eventCoords[i + 1];
+    const offset = 12; // offset to stop before the 16px (radius 8px) dot
     
     if (p1.dayIndex === p2.dayIndex) {
       // Straight vertical segment
-      return `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+      const isGoingDown = p2.y > p1.y;
+      const startY = isGoingDown ? p1.y + offset : p1.y - offset;
+      const endY = isGoingDown ? p2.y - offset : p2.y + offset;
+      return `M ${p1.x} ${startY} L ${p2.x} ${endY}`;
     } else {
       // U-turn curve connecting day boundaries
       const dy = 90; // Bulge vertical curve offset
       
       if (p1.dayIndex % 2 === 0) {
         // Even day ending at bottom -> Bottom U-turn
-        return `M ${p1.x} ${p1.y} C ${p1.x} ${p1.y + dy}, ${p2.x} ${p2.y + dy}, ${p2.x} ${p2.y}`;
+        return `M ${p1.x} ${p1.y + offset} C ${p1.x} ${p1.y + dy}, ${p2.x} ${p2.y + dy}, ${p2.x} ${p2.y + offset}`;
       } else {
         // Odd day ending at top -> Top U-turn
-        return `M ${p1.x} ${p1.y} C ${p1.x} ${p1.y - dy}, ${p2.x} ${p2.y - dy}, ${p2.x} ${p2.y}`;
+        return `M ${p1.x} ${p1.y - offset} C ${p1.x} ${p1.y - dy}, ${p2.x} ${p2.y - dy}, ${p2.x} ${p2.y - offset}`;
       }
     }
   };

@@ -84,7 +84,7 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
         emit_event(config, {"type": "node_end", "node": "captain"})
         return {}
         
-    log_agent(config, "All candidates gathered! Sequencing your itinerary...")
+    log_agent(config, "All data is gathered — I'm building your day-by-day itinerary.")
     log_dev(config, "[Captain Orchestrator] All candidates gathered. Building itinerary programmatically...")
 
     # =================================================================
@@ -104,14 +104,14 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
     food_names = [f.name for f in food_options[:2]]
     food_act_thought = f"Prioritizing visits to {', '.join(act_names)} alongside dining at {', '.join(food_names)}."
 
-    log_agent(config, f"Transit Choice: {transit_thought}")
+    log_agent(config, f"I'm selecting the most efficient {modes_str} connections across your route.")
     await asyncio.sleep(0.5)
-    log_agent(config, f"Lodging Choice: {lodging_thought}")
+    log_agent(config, f"I'm shortlisting stays at {', '.join(hotel_names)} for your nights.")
     await asyncio.sleep(0.5)
-    log_agent(config, f"Activities & Dining: {food_act_thought}")
+    log_agent(config, f"I'm planning visits to {', '.join(act_names)} with dining at {', '.join(food_names)}.")
     await asyncio.sleep(0.5)
     
-    log_agent(config, "Compiling and validating day plans against opening hours and transit times...")
+    log_agent(config, "I'm assembling and validating your day-by-day schedule.")
 
     # =================================================================
     # 2. Build Day-by-Day Route & Allocations
@@ -133,10 +133,37 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
     # =================================================================
     # 3. Match Stays, Dining, and Sights to Destinations
     # =================================================================
+    # =================================================================
+    # 3. Match Stays, Dining, and Sights to Destinations
+    # =================================================================
+    import re
+    
+    unique_dests = list(set(day_to_dest.values()))
+
+    def is_place_for_destination(place_address: str, place_name: str, dest: str) -> bool:
+        addr = place_address.lower()
+        name = place_name.lower()
+        d_clean = dest.lower().strip()
+        
+        # 1. Direct substring match
+        if d_clean in addr or d_clean in name:
+            return True
+            
+        # 2. Check individual significant words (length > 3) to handle variations
+        words = [w for w in re.split(r'[^a-zA-Z0-9]+', d_clean) if len(w) > 3]
+        if words and any(w in addr or w in name for w in words):
+            return True
+            
+        return False
+
     # Select one lodging choice per destination for consistency
     dest_to_hotel = {}
-    for dest in set(day_to_dest.values()):
-        hotels_for_dest = [h for h in accommodation_options if dest.lower() in h.location.address.lower() or dest.lower() in h.name.lower()]
+    for dest in unique_dests:
+        hotels_for_dest = [
+            h for h in accommodation_options
+            if is_place_for_destination(h.location.address, h.name, dest)
+        ]
+        # Absolute fallback to all accommodation options
         if not hotels_for_dest:
             hotels_for_dest = accommodation_options
         if hotels_for_dest:
@@ -146,48 +173,128 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
     dest_activities = defaultdict(list)
     for act in activity_options:
         matched = False
-        for dest in set(day_to_dest.values()):
-            if dest.lower() in act.location.address.lower() or dest.lower() in act.name.lower():
+        for dest in unique_dests:
+            if is_place_for_destination(act.location.address, act.name, dest):
                 dest_activities[dest].append(act)
                 matched = True
                 break
         if not matched:
-            dest_activities[list(day_to_dest.values())[0]].append(act)
+            dest_activities[unique_dests[0]].append(act)
 
     dest_food = defaultdict(list)
     for f in food_options:
         matched = False
-        for dest in set(day_to_dest.values()):
-            if dest.lower() in f.location.address.lower() or dest.lower() in f.name.lower():
+        for dest in unique_dests:
+            if is_place_for_destination(f.location.address, f.name, dest):
                 dest_food[dest].append(f)
                 matched = True
                 break
         if not matched:
-            dest_food[list(day_to_dest.values())[0]].append(f)
+            dest_food[unique_dests[0]].append(f)
 
-    # Match transit segments
-    def find_transit_option(start: str, end: str) -> Optional[TransitOption]:
+    # Match transit segments via BFS pathfinding
+    def is_city_match(node: str, city: str) -> bool:
+        def normalize_city_name(name: str) -> str:
+            n = name.lower().strip()
+            # Replace known alias words/substrings
+            replacements = {
+                "madras": "chennai",
+                "trivandrum": "thiruvananthapuram",
+                "cochin": "kochi",
+                "vasco da gama": "goa",
+                "kulu": "kullu"
+            }
+            for old, new in replacements.items():
+                n = n.replace(old, new)
+            return n
+
+        n = normalize_city_name(node)
+        c = normalize_city_name(city)
+        
+        # 1. Direct or substring matches
+        if n == c or c in n or n in c:
+            return True
+            
+        # 2. Match using airport code extraction
+        import re
+        from src.tools.flights import get_airport_code, resolve_nearest_airport
+        
+        n_iatas = re.findall(r'\(([a-z]{3})\)', n)
+        c_iatas = re.findall(r'\(([a-z]{3})\)', c)
+        
+        def is_primary_airport_city(city_name: str) -> bool:
+            try:
+                info = resolve_nearest_airport(city_name)
+                # Normalize both target city and airport city for comparison
+                airport_city = normalize_city_name(info.airport_city)
+                target_city = normalize_city_name(city_name)
+                return target_city in airport_city or airport_city in target_city
+            except Exception:
+                return False
+        
+        c_code = get_airport_code(city).lower().strip()
+        if n_iatas and c_code in n_iatas and is_primary_airport_city(city):
+            return True
+            
+        n_code = get_airport_code(node).lower().strip()
+        if c_iatas and n_code in c_iatas and is_primary_airport_city(node):
+            return True
+            
+        # 3. Clean parenthesis fallbacks
+        if "(" in n:
+            n_clean = n.split("(")[0].strip()
+            if n_clean == c or c in n_clean or n_clean in c:
+                return True
+        if "(" in c:
+            c_clean = c.split("(")[0].strip()
+            if n == c_clean or c_clean in n or n in c_clean:
+                return True
+                
+        return False
+
+
+    def find_transit_path(start: str, end: str) -> List[TransitOption]:
+        from collections import deque
+        queue = deque()
+        
+        # Enqueue initial segments
+        for opt in transit_options:
+            if is_city_match(opt.origin, start):
+                queue.append((opt.destination, [opt]))
+                
+        visited = set()
+        
+        while queue:
+            curr_city, path = queue.popleft()
+            
+            if is_city_match(curr_city, end):
+                return path
+                
+            state_key = curr_city.lower().strip()
+            if state_key in visited:
+                continue
+            visited.add(state_key)
+            
+            for opt in transit_options:
+                if is_city_match(opt.origin, curr_city):
+                    if opt.destination.lower().strip() not in visited:
+                        queue.append((opt.destination, path + [opt]))
+                        
+        # Fallback 1: ID prefix matches
         s_key = start.lower().strip().replace(' ', '_')
         e_key = end.lower().strip().replace(' ', '_')
-        
-        # Check by prefix/contains in id (e.g. flight_new_york_tokyo_0)
         for opt in transit_options:
             opt_id = opt.id.lower()
             if s_key in opt_id and e_key in opt_id:
                 if opt_id.find(s_key) < opt_id.find(e_key):
-                    return opt
-
+                    return [opt]
+                    
+        # Fallback 2: Direct match
         for opt in transit_options:
-            if opt.origin.lower().strip() == start.lower().strip() and opt.destination.lower().strip() == end.lower().strip():
-                return opt
-        for opt in transit_options:
-            if (start.lower().strip() in opt.origin.lower() or opt.origin.lower() in start.lower().strip()) and \
-               (end.lower().strip() in opt.destination.lower() or opt.destination.lower() in end.lower().strip()):
-                return opt
-        for opt in transit_options:
-            if start.lower().strip() in opt.origin.lower() or end.lower().strip() in opt.destination.lower():
-                return opt
-        return None
+            if is_city_match(opt.origin, start) and is_city_match(opt.destination, end):
+                return [opt]
+                
+        return []
 
     # =================================================================
     # 4. Construct DayPlan schedules
@@ -207,14 +314,12 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
 
         # A. Transit on Day 1 or Transition Day
         if day_number == 1:
-            first_transit = find_transit_option(origin, dest)
-            if first_transit:
-                day_schedule.append(first_transit)
+            first_transits = find_transit_path(origin, dest)
+            day_schedule.extend(first_transits)
         elif day_to_dest[day_number] != day_to_dest[day_number - 1]:
             prev_dest = day_to_dest[day_number - 1]
-            transition_transit = find_transit_option(prev_dest, dest)
-            if transition_transit:
-                day_schedule.append(transition_transit)
+            transition_transits = find_transit_path(prev_dest, dest)
+            day_schedule.extend(transition_transits)
 
         # B. Sights/Activities (Distribute 2 per day, strictly deduplicated)
         acts_list = dest_activities[dest]
@@ -258,9 +363,8 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
 
         # E. Transit on Last Day (Return to Origin)
         if day_number == total_days:
-            return_transit = find_transit_option(dest, origin)
-            if return_transit:
-                day_schedule.append(return_transit)
+            return_transits = find_transit_path(dest, origin)
+            day_schedule.extend(return_transits)
 
         reconstructed_days.append(
             DayPlan(
@@ -290,17 +394,100 @@ async def captain_node(state: AgentState, config: RunnableConfig) -> Dict[str, A
         prev_dest = day_to_dest[day_number - 1]
         curr_dest = day_to_dest[day_number]
         if prev_dest != curr_dest:
-            opt = find_transit_option(prev_dest, curr_dest)
-            if not opt:
-                validation_warnings.append(f"No direct transit option resolved between {prev_dest} and {curr_dest}. Consider self-driving or hiring a local cab.")
+            path = find_transit_path(prev_dest, curr_dest)
+            if not path:
+                validation_warnings.append(f"No direct or multi-hop transit path resolved between {prev_dest} and {curr_dest}. Consider self-driving or hiring a local cab.")
 
     for opt in transit_options:
         if opt.duration_minutes > 300:
             validation_warnings.append(f"Transit segment from {opt.origin} to {opt.destination} has a long travel duration ({opt.duration_minutes // 60} hours).")
 
+    # Calculate budget details from the compiled itinerary
+    transit_cost = sum(
+        item.estimated_price
+        for day in full_itinerary.days
+        for item in day.schedule
+        if item.type == "transit" and getattr(item, "estimated_price", None)
+    )
+    accommodation_cost = sum(
+        item.cost_estimate
+        for day in full_itinerary.days
+        for item in day.schedule
+        if item.type == "place" and getattr(item, "category", None) == "stay" and getattr(item, "cost_estimate", None)
+    )
+    food_activities_cost = sum(
+        item.cost_estimate
+        for day in full_itinerary.days
+        for item in day.schedule
+        if item.type == "place" and getattr(item, "category", None) in ("food", "sightseeing") and getattr(item, "cost_estimate", None)
+    )
+    total_estimated = transit_cost + accommodation_cost + food_activities_cost
+
+    import re
+    def parse_budget_level_to_inr(budget_str: str) -> Optional[float]:
+        if not budget_str:
+            return None
+        s = budget_str.lower().strip()
+        has_k = 'k' in s
+        has_lakh = 'lakh' in s or 'lac' in s
+        
+        raw_nums = re.findall(r'\b\d+(?:\.\d+)?\b', s)
+        if not raw_nums:
+            raw_nums = re.findall(r'\d+(?:\.\d+)?', s)
+            
+        if not raw_nums:
+            return None
+            
+        numbers = []
+        for num_str in raw_nums:
+            try:
+                val = float(num_str)
+                if val < 1000 and has_k:
+                    val *= 1000
+                elif val < 100 and has_lakh:
+                    val *= 100000
+                numbers.append(val)
+            except ValueError:
+                continue
+                
+        if not numbers:
+            return None
+            
+        if len(numbers) == 1:
+            return numbers[0]
+        return sum(numbers) / len(numbers)
+
+    user_budget = parsed_params.get("budget_level", "")
+    parsed_val = parse_budget_level_to_inr(user_budget)
+    
+    if parsed_val is not None:
+        if total_estimated <= parsed_val:
+            verdict = "within_budget"
+            message = f"Estimated trip cost is INR {total_estimated:,.0f} — within your stated budget."
+        else:
+            verdict = "over_budget"
+            message = f"Estimated trip cost is INR {total_estimated:,.0f} — slightly over your budget. Consider reviewing accommodation."
+    else:
+        verdict = "approximate"
+        budget_label = user_budget if user_budget else "mid-range"
+        budget_label_clean = budget_label.replace("_", "-").replace(" ", "-")
+        message = f"Estimated trip cost is INR {total_estimated:,.0f}, consistent with a {budget_label_clean} budget."
+
+    emit_event(config, {
+        "type": "budget_summary",
+        "total_estimated_inr": int(total_estimated),
+        "transit_cost_inr": int(transit_cost),
+        "accommodation_cost_inr": int(accommodation_cost),
+        "food_activities_cost_inr": int(food_activities_cost),
+        "living_cost_inr": int(accommodation_cost + food_activities_cost),
+        "user_budget_raw": user_budget,
+        "verdict": verdict,
+        "message": message
+    })
+
     node_dur = time.perf_counter() - node_start
     log_dev(config, f"[Captain Orchestrator] Total Captain Node Latency: {node_dur:.2f}s")
-    log_agent(config, "Itinerary successfully compiled!")
+    log_agent(config, "I've compiled your itinerary.")
     log_dev(config, "[Captain Orchestrator] Final compilation and guardrail verification successful!")
     
     emit_event(config, {"type": "node_end", "node": "captain"})
