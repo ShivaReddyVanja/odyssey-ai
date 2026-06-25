@@ -2,6 +2,9 @@ import os
 import json
 import time
 from fastapi import Request
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 def get_client_ip(request: Request) -> str:
     x_forwarded_for = request.headers.get("x-forwarded-for")
@@ -51,7 +54,13 @@ class RateLimiter:
         """
         Returns True if client is allowed to start a new request, False if blocked.
         Clean up timestamps older than 24 hours.
+        Skip rate check if DEVELOPER_MODE is enabled.
         """
+        dev_mode = os.getenv("DEVELOPER_MODE", "false").lower().strip()
+        if dev_mode in ("true", "1", "yes"):
+            print(f"[Rate Limiter] Developer mode active — skipping rate limit check for IP: {ip}")
+            return True
+
         now = time.time()
         day_ago = now - 24 * 3600
         
