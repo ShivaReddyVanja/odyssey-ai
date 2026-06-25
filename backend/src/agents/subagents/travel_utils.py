@@ -20,7 +20,7 @@ class CityCountryDetails(BaseModel):
 def get_city_country(city: str) -> str:
     """Resolves the country name for a city using local checks, Google Geocoding API, or SerpAPI."""
     c_lower = city.lower().strip()
-    if c_lower.endswith(", india") or c_lower.endswith(", in") or "india" in c_lower:
+    if c_lower == "india" or c_lower.endswith(", india") or c_lower.endswith(", in") or c_lower.endswith(" india"):
         return "India"
         
     # Check against static Indian DB
@@ -72,7 +72,7 @@ def get_city_country(city: str) -> str:
     except Exception as e:
         print(f"[Geography Helper] Google Search failed to find country for {city}: {e}")
         
-    return "India"
+    return "Unknown"
 
 def is_international_travel(start_city: str, end_city: str) -> bool:
     """Checks if travel between start_city and end_city is international."""
@@ -148,7 +148,7 @@ def get_city_coordinates(city: str) -> tuple:
         except Exception as e:
             print(f"[Geography Helper] Geocoding coordinates failed for '{city}': {e}")
             
-    return 20.5937, 78.9629
+    return None, None
 
 class FlightVerification(BaseModel):
     has_active_flights: bool = Field(..., description="True if there are active commercial passenger flights between these airports, False otherwise.")
@@ -188,6 +188,10 @@ def estimate_flight_details(start_city: str, end_city: str) -> tuple:
     lat1, lon1 = get_city_coordinates(start_city)
     lat2, lon2 = get_city_coordinates(end_city)
     
+    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+        print(f"[Flight Estimator] Could not resolve coordinates for '{start_city}' or '{end_city}' — using fallback default estimates.")
+        return 120, 5000
+        
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
