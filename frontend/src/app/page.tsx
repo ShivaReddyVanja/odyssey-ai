@@ -36,6 +36,7 @@ export default function Home() {
   const pathRef = useRef<SVGPathElement>(null);
   const glowPathRef = useRef<SVGPathElement>(null);
   const chargePathRef = useRef<SVGPathElement>(null);
+  const dismissBtnRef = useRef<HTMLButtonElement>(null);
 
   // Track animation timing states
   const animStateRef = useRef({
@@ -44,6 +45,13 @@ export default function Home() {
     completedStartTime: 0,
     isCompletedAnimating: false,
   });
+
+  // Focus the dismiss button when rate limit modal opens
+  useEffect(() => {
+    if (rateLimitError && dismissBtnRef.current) {
+      dismissBtnRef.current.focus();
+    }
+  }, [rateLimitError]);
 
   // Auto-switch to path once planning completes, back to pipeline on reset
   useEffect(() => {
@@ -389,7 +397,12 @@ export default function Home() {
       {/* Rate Limit Modal Popup Overlay */}
       {rateLimitError && (
         <div className="rate-limit-modal-overlay">
-          <div className="rate-limit-modal-card">
+          <div 
+            className="rate-limit-modal-card" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="rate-limit-title"
+          >
             <div className="rate-limit-modal-icon">
               <svg
                 width="28"
@@ -406,9 +419,13 @@ export default function Home() {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h2 className="rate-limit-modal-title">Rate Limit Exceeded</h2>
+            <h2 id="rate-limit-title" className="rate-limit-modal-title">Rate Limit Exceeded</h2>
             <p className="rate-limit-modal-desc">{rateLimitError}</p>
-            <button className="rate-limit-modal-btn" onClick={clearRateLimitError}>
+            <button 
+              ref={dismissBtnRef} 
+              className="rate-limit-modal-btn" 
+              onClick={clearRateLimitError}
+            >
               Dismiss
             </button>
           </div>
