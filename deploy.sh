@@ -55,6 +55,21 @@ else
     exit 1
 fi
 
+# 5. Automate Web Server / Reverse Proxy Setup (Caddy)
+if [ -n "$DEPLOY_DOMAIN" ]; then
+    echo "Reloading Caddy configuration for: $DEPLOY_DOMAIN..."
+    export DEPLOY_DOMAIN
+    if command -v caddy &> /dev/null; then
+        caddy reload --config Caddyfile
+        echo "Caddy configuration reloaded successfully."
+    else
+        echo "WARNING: Caddy is not installed or not in PATH on this server."
+        echo "An administrator should install Caddy once using 'sudo ./scripts/setup-caddy.sh --domain $DEPLOY_DOMAIN'."
+    fi
+else
+    echo "Skipping Caddy reverse proxy setup (DEPLOY_DOMAIN not specified)."
+fi
+
 echo "========================================="
 echo "Deployment completed successfully."
 echo "========================================="

@@ -103,6 +103,8 @@ export interface BudgetCardData {
   message: string;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export function useEventStream() {
   const [phase, setPhase] = useState<StreamPhase>("idle");
   const [logs, setLogs] = useState<LogMessage[]>([]);
@@ -348,8 +350,8 @@ export function useEventStream() {
     reset();
     setPhase("validating");
     addLog(prompt, "user");
-    // Connect to local backend API
-    processStream("http://localhost:8000/api/plan/run", { user_prompt: prompt });
+    // Connect to backend API
+    processStream(`${API_BASE_URL}/api/plan/run`, { user_prompt: prompt });
   }, [reset, addLog]);
 
   const submitClarification = useCallback((answers: Record<string, string>) => {
@@ -365,7 +367,7 @@ export function useEventStream() {
       .join("\n");
     addLog(`Answers submitted:\n${answersText}`, "user");
 
-    processStream("http://localhost:8000/api/plan/resume", {
+    processStream(`${API_BASE_URL}/api/plan/resume`, {
       thread_id: threadId,
       answers,
     });
