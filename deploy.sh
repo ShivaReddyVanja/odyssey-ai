@@ -42,7 +42,13 @@ echo "Installing npm dependencies and building Next.js bundle..."
 npm install
 cd frontend
 npm install
-npm run build
+if [ -n "$DEPLOY_DOMAIN" ]; then
+    echo "Injecting NEXT_PUBLIC_API_URL=https://$DEPLOY_DOMAIN for production build..."
+    NEXT_PUBLIC_API_URL="https://$DEPLOY_DOMAIN" npm run build
+else
+    echo "No DEPLOY_DOMAIN specified, building Next.js frontend with default API URL..."
+    npm run build
+fi
 cd ..
 
 # 4. Reload Services with PM2
