@@ -112,6 +112,8 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
                 if len(plan.ordered_destinations) > 0:
                     plan.ordered_destinations[-1].duration_days = max(1, diff)
 
+            actual_duration = sum(dest.duration_days for dest in plan.ordered_destinations)
+
             # Format the output beautifully as a premium card
             route_lines = []
             for dest in plan.ordered_destinations:
@@ -120,7 +122,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             
             log_dev(config, f"[Planner Agent] Route card: {[d.destination for d in plan.ordered_destinations]}")
             
-            log_dev(config, f"[Planner Agent] Planning Finalized! Destinations: {[d.destination for d in plan.ordered_destinations]} (Total Days: {duration_days})")
+            log_dev(config, f"[Planner Agent] Planning Finalized! Destinations: {[d.destination for d in plan.ordered_destinations]} (Total Days: {actual_duration})")
             log_dev(config, f"[Planner Agent] Explanation: {plan.explanation}")
             
             summary = ", ".join(f"{d.destination} ({d.duration_days}d)" for d in plan.ordered_destinations)
@@ -132,7 +134,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
                 "destinations": [dest.model_dump() if hasattr(dest, "model_dump") else dest for dest in plan.ordered_destinations],
                 "theme": plan.theme,
                 "explanation": plan.explanation,
-                "summary_text": f"I've planned a {duration_days}-day trip."
+                "summary_text": f"I've planned a {actual_duration}-day trip."
             })
             
             # Update the theme in parsed parameters if a refined one is suggested
