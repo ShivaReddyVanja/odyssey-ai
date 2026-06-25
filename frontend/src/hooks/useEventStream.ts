@@ -112,6 +112,7 @@ export function useEventStream() {
   const [budgetCard, setBudgetCard] = useState<BudgetCardData | null>(null);
   
   const [activeNode, setActiveNode] = useState<string | null>(null);
+  const [rateLimitError, setRateLimitError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Record<string, (Place | TransitOption)[]>>({
     transit: [],
     accommodation: [],
@@ -176,6 +177,11 @@ export function useEventStream() {
     setThreadId(null);
     setLastDiscovery(null);
     setActiveApiCall(null);
+    setRateLimitError(null);
+  }, []);
+
+  const clearRateLimitError = useCallback(() => {
+    setRateLimitError(null);
   }, []);
 
   const processStream = async (url: string, requestBody: any) => {
@@ -197,6 +203,16 @@ export function useEventStream() {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const errorText = await response.text();
+          let msg = "Rate limit reached. You can only create 2 successful itineraries every 24 hours.";
+          try {
+            const errObj = JSON.parse(errorText);
+            if (errObj.detail) msg = errObj.detail;
+          } catch (e) {}
+          setRateLimitError(msg);
+          throw new Error(msg);
+        }
         const errorText = await response.text();
         throw new Error(errorText || `HTTP error ${response.status}`);
       }
@@ -373,5 +389,7 @@ export function useEventStream() {
     startPlanning,
     submitClarification,
     reset,
+    rateLimitError,
+    clearRateLimitError,
   };
 }
