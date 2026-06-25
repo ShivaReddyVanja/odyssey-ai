@@ -16,26 +16,24 @@ def sightseeing_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any
     params = state.get("parsed_parameters", {})
     styles = params.get("travel_style", [])
     planned_dests = state.get("planned_destinations", [])
-    
     if not planned_dests:
         destination = params.get("destination", "")
-        log_agent(config, f"🔍 Sourcing attractions in {destination}...")
-        log_dev(config, f"[Sightseeing Agent] Warning: No planned_destinations. Searching activities in {destination}...")
+        duration_days = params.get("duration_days", 3) or 3
+        limit = max(12, duration_days * 2 + 4)
+        log_agent(config, f"I'm identifying top attractions in {destination}...")
+        log_dev(config, f"[Sightseeing Agent] Warning: No planned_destinations. Searching activities in {destination} (limit: {limit})...")
         import time
         start_time = time.perf_counter()
-        emit_event(config, {"type": "api_call", "tool": "SerpAPI"})
-        activity_options = search_activities(destination, styles)
+        emit_event(config, {"type": "api_call", "tool": "Google Places"})
+        activity_options = search_activities(destination, styles, limit=limit)
         dur = time.perf_counter() - start_time
         log_dev(config, f"[Latency Metric] Sightseeing Agent activities search in {destination}: {dur:.2f}s")
         
         if activity_options:
-            log_agent(config, f"🏛️ Found attractions in {destination}!")
-            card_lines = ["🏛️ ATTRACTIONS SOURCED", "━━━━━━━━━━━━━━━━━━━━━━━━", f"📍 {destination}"]
-            for spot in activity_options[:3]:
-                rating_str = f"{spot.rating}★" if spot.rating else "No rating"
-                card_lines.append(f"  • {spot.name} ({rating_str}) — {spot.location.address}")
-            card_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
-            log_agent(config, "\n".join(card_lines))
+            emit_event(config, {
+                "type": "sightseeing_finalized",
+                "selections": [opt.model_dump() for opt in activity_options]
+            })
 
         emit_event(config, {
             "type": "candidates_discovered",
@@ -46,36 +44,31 @@ def sightseeing_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any
         return {"activities": activity_options}
         
     activity_options = []
-    log_agent(config, "Sourcing sightseeing spots and things to do...")
+    log_agent(config, "I'm sourcing sightseeing spots and things to do...")
     log_dev(config, f"[Sightseeing Agent] Searching activity options across planned destinations: {[d.destination for d in planned_dests]}...")
     
     grouped_activities = defaultdict(list)
     for alloc in planned_dests:
         dest = alloc.destination
-        log_agent(config, f"🔍 Sourcing attractions in {dest}...")
-        log_dev(config, f"[Sightseeing Agent] Searching activities in: {dest}...")
+        limit = max(12, alloc.duration_days * 2 + 4)
+        log_agent(config, f"I'm identifying top attractions in {dest}...")
+        log_dev(config, f"[Sightseeing Agent] Searching activities in: {dest} (limit: {limit})...")
         import time
         start_time = time.perf_counter()
-        emit_event(config, {"type": "api_call", "tool": "Ticketmaster"})
-        acts = search_activities(dest, styles)
+        emit_event(config, {"type": "api_call", "tool": "Google Places"})
+        acts = search_activities(dest, styles, limit=limit)
         dur = time.perf_counter() - start_time
         log_dev(config, f"[Latency Metric] Sightseeing Agent activities search in {dest}: {dur:.2f}s")
         
         if acts:
-            log_agent(config, f"🏛️ Found attractions in {dest}!")
             activity_options.extend(acts)
             grouped_activities[dest].extend(acts)
             
     if activity_options:
-        card_lines = ["🏛️ ATTRACTIONS SOURCED", "━━━━━━━━━━━━━━━━━━━━━━━━"]
-        for dest, acts in grouped_activities.items():
-            card_lines.append(f"📍 {dest}")
-            for spot in acts[:2]:
-                rating_str = f"{spot.rating}★" if spot.rating else "No rating"
-                card_lines.append(f"  • {spot.name} ({rating_str}) — {spot.location.address}")
-            card_lines.append("")
-        card_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
-        log_agent(config, "\n".join(card_lines))
+        emit_event(config, {
+            "type": "sightseeing_finalized",
+            "selections": [opt.model_dump() for opt in activity_options]
+        })
             
     emit_event(config, {
         "type": "candidates_discovered",

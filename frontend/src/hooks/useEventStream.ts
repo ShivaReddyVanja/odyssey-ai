@@ -69,9 +69,48 @@ export interface ApiCallEvent {
   timestamp: number;
 }
 
+export interface DestinationCardData {
+  type: "planner_finalized";
+  destinations: { destination: string; duration_days: number }[];
+  theme: string;
+  explanation: string;
+  summary_text: string;
+}
+
+export interface TransitCardData {
+  type: "transit_plan_finalized";
+  segments: {
+    origin: string;
+    destination: string;
+    mode: string;
+    mode_label: string;
+    carrier?: string;
+    departure_time?: string;
+    duration_minutes: number;
+    estimated_price: number;
+  }[];
+}
+
+export interface BudgetCardData {
+  type: "budget_summary";
+  total_estimated_inr: number;
+  transit_cost_inr: number;
+  accommodation_cost_inr: number;
+  food_activities_cost_inr: number;
+  living_cost_inr: number;
+  user_budget_raw: string;
+  verdict: "within_budget" | "over_budget" | "approximate";
+  message: string;
+}
+
 export function useEventStream() {
   const [phase, setPhase] = useState<StreamPhase>("idle");
   const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [thinkingLogs, setThinkingLogs] = useState<LogMessage[]>([]);
+  const [destinationCard, setDestinationCard] = useState<DestinationCardData | null>(null);
+  const [transitCard, setTransitCard] = useState<TransitCardData | null>(null);
+  const [budgetCard, setBudgetCard] = useState<BudgetCardData | null>(null);
+  
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Record<string, (Place | TransitOption)[]>>({
     transit: [],
@@ -101,12 +140,29 @@ export function useEventStream() {
     ]);
   }, []);
 
+  const addThinkingLog = useCallback((text: string, type: "log" | "system" | "error" | "agent" | "user" = "log", node?: string) => {
+    setThinkingLogs((prev) => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        text,
+        timestamp: new Date(),
+        type,
+        node: node || undefined,
+      },
+    ]);
+  }, []);
+
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     setPhase("idle");
     setLogs([]);
+    setThinkingLogs([]);
+    setDestinationCard(null);
+    setTransitCard(null);
+    setBudgetCard(null);
     setActiveNode(null);
     setCandidates({
       transit: [],
@@ -193,16 +249,16 @@ export function useEventStream() {
         // Map node to client phases
         if (event.node === "gatekeeper") {
           setPhase("validating");
-          addLog("Gatekeeper analyzing travel criteria...", "agent", event.node);
+          addThinkingLog("Gatekeeper analyzing travel criteria...", "agent", event.node);
         } else if (event.node === "planner") {
           setPhase("planning");
-          addLog("Planner formulating routing strategy...", "agent", event.node);
+          addThinkingLog("Planner formulating routing strategy...", "agent", event.node);
         } else if (["travel", "stay", "food", "sightseeing"].includes(event.node)) {
           setPhase("discovering");
-          addLog(`Gathering options from ${event.node} agents...`, "agent", event.node);
+          addThinkingLog(`Gathering options from ${event.node} agents...`, "agent", event.node);
         } else if (event.node === "captain") {
           setPhase("compiling");
-          addLog("Captain sequencing days and compiling itinerary...", "agent", event.node);
+          addThinkingLog("Captain sequencing days and compiling itinerary...", "agent", event.node);
         }
         break;
 
@@ -211,13 +267,12 @@ export function useEventStream() {
         break;
 
       case "log":
-        addLog(event.message, "log");
+        addThinkingLog(event.message, "log");
         break;
 
       case "api_call":
         setActiveApiCall({ tool: event.tool, timestamp: Date.now() });
-        // Also log it if there's a message, or just ignore message and only use for UI
-        if (event.message) addLog(event.message, "log");
+        if (event.message) addThinkingLog(event.message, "log");
         break;
 
       case "candidates_discovered":
@@ -230,7 +285,20 @@ export function useEventStream() {
           candidates: event.candidates,
           timestamp: Date.now(),
         });
-        addLog(`Found ${event.candidates.length} options for ${event.category}!`, "system");
+        addThinkingLog(`Found ${event.candidates.length} options for ${event.category}!`, "system");
+        break;
+
+      case "planner_finalized":
+        setDestinationCard(event);
+        break;
+
+      case "transit_plan_finalized":
+        setTransitCard(event);
+        break;
+
+      case "budget_summary":
+        setBudgetCard(event);
+        addLog(event.message, "system");
         break;
 
       case "interrupt":
@@ -247,6 +315,7 @@ export function useEventStream() {
         setValidationWarnings(event.validation_warnings || []);
         setInterruptedQuestions(null);
         addLog("Travel itinerary successfully compiled!", "system");
+        setThinkingLogs([]); // Auto-close thinking drawer by clearing its logs
         break;
 
       case "error":
@@ -289,6 +358,10 @@ export function useEventStream() {
   return {
     phase,
     logs,
+    thinkingLogs,
+    destinationCard,
+    transitCard,
+    budgetCard,
     activeNode,
     candidates,
     finalItinerary,

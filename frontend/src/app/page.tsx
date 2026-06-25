@@ -11,6 +11,10 @@ export default function Home() {
   const {
     phase,
     logs,
+    thinkingLogs,
+    destinationCard,
+    transitCard,
+    budgetCard,
     activeNode,
     candidates,
     finalItinerary,
@@ -285,6 +289,10 @@ export default function Home() {
         <ChatPanel
           phase={phase}
           logs={logs}
+          thinkingLogs={thinkingLogs}
+          destinationCard={destinationCard}
+          transitCard={transitCard}
+          budgetCard={budgetCard}
           activeNode={activeNode}
           interruptedQuestions={interruptedQuestions}
           startPlanning={startPlanning}

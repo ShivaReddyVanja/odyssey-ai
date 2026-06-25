@@ -110,7 +110,7 @@ def query_google_places(
     return places
 
 
-def search_food(destination: str, travel_styles: List[str]) -> List[Place]:
+def search_food(destination: str, travel_styles: List[str], limit: int = 12) -> List[Place]:
     """
     Resolves destination coordinates and fetches real restaurants/cafes from Google Places.
     Raises errors on failure or if no results are found.
@@ -121,12 +121,14 @@ def search_food(destination: str, travel_styles: List[str]) -> List[Place]:
     if travel_styles:
         query_str += f" specializing in {', '.join(travel_styles)}"
         
-    places = query_google_places(lat, lng, query_str, PlaceCategory.FOOD, limit=12)
+    places = query_google_places(lat, lng, query_str, PlaceCategory.FOOD, limit=limit)
     if not places:
         raise RuntimeError(f"No dining options found for '{destination}' near coordinate ({lat}, {lng}) from Google Places API.")
+    for p in places:
+        p.destination = destination
     return places
 
-def search_activities(destination: str, travel_styles: List[str]) -> List[Place]:
+def search_activities(destination: str, travel_styles: List[str], limit: int = 12) -> List[Place]:
     """
     Resolves destination coordinates and fetches tourist attractions/sights from Google Places.
     Raises errors on failure or if no results are found.
@@ -137,7 +139,9 @@ def search_activities(destination: str, travel_styles: List[str]) -> List[Place]
     if travel_styles:
         query_str += f" for {', '.join(travel_styles)}"
         
-    places = query_google_places(lat, lng, query_str, PlaceCategory.SIGHTSEEING, limit=12)
+    places = query_google_places(lat, lng, query_str, PlaceCategory.SIGHTSEEING, limit=limit)
     if not places:
         raise RuntimeError(f"No sightseeing activities found for '{destination}' near coordinate ({lat}, {lng}) from Google Places API.")
+    for p in places:
+        p.destination = destination
     return places

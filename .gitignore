@@ -11,6 +11,7 @@ backend/venv/
 !.env.example
 backend/.env
 backend/.env.*
+!backend/.env.example
 
 # Python cache and compiled files
 __pycache__/
@@ -44,3 +45,10 @@ Thumbs.db
 *.njsproj
 *.sln
 *.swp
+
+# travel-agents cache files
+backend/*_cache.json
+backend/cache/
+
+# Scratch files
+backend/scratch/

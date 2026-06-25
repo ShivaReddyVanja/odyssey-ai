@@ -77,8 +77,17 @@ const SerpApiIcon = () => (
 
 const TicketmasterIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="24" height="24" rx="4" fill="#006CFF"/>
-    <path d="M8 8V11H10V17H13V11H16V8H13V6.2C13 5.7 13.4 5.3 13.9 5.3H16V2.5H13.5C11.2 2.5 9.5 3.9 9.5 6.2V8H8Z" fill="white"/>
+    <rect width="24" height="24" rx="6" fill="#026CDF"/>
+    <path d="M6 8.5C6 7.67 6.67 7 7.5 7H16.5C17.33 7 18 7.67 18 8.5V10.5C17.17 10.5 16.5 11.17 16.5 12C16.5 12.83 17.17 13.5 18 13.5V15.5C18 16.33 17.33 17 16.5 17H7.5C6.67 17 6 16.33 6 15.5V13.5C6.83 13.5 7.5 12.83 7.5 12C7.5 11.17 6.83 10.5 6 10.5V8.5Z" fill="white"/>
+    <line x1="10" y1="9" x2="10" y2="15" stroke="#026CDF" strokeWidth="1.5" strokeDasharray="2 2"/>
+  </svg>
+);
+
+const SkyscannerIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="6" fill="#00b2d6"/>
+    <path d="M12 4.5C7.86 4.5 4.5 7.86 4.5 12C4.5 16.14 7.86 19.5 12 19.5C16.14 19.5 19.5 16.14 19.5 12C19.5 7.86 16.14 4.5 12 4.5ZM12 16.5C9.52 16.5 7.5 14.48 7.5 12C7.5 9.52 9.52 7.5 12 7.5C14.48 7.5 16.5 9.52 16.5 12C16.5 14.48 14.48 16.5 12 16.5Z" fill="white"/>
+    <circle cx="12" cy="12" r="2.5" fill="white"/>
   </svg>
 );
 
@@ -440,8 +449,8 @@ function CentralLogBox({ activeApiCall, logs, phase }: { activeApiCall: ApiCallE
 
   let Logo = UnknownApiIcon;
   let toolName = activeApiCall.tool;
-  
   if (toolName === "Google Flights") Logo = GoogleFlightsIcon;
+  else if (toolName === "Skyscanner") Logo = SkyscannerIcon;
   else if (toolName === "Google Maps") Logo = GoogleMapsIcon;
   else if (toolName === "Booking.com") Logo = BookingComIcon;
   else if (toolName === "Google Places") Logo = GooglePlacesIcon;
@@ -487,22 +496,76 @@ function CentralLogBox({ activeApiCall, logs, phase }: { activeApiCall: ApiCallE
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
 export default function PipelinePanel({ activeNode, phase, candidates, logs, activeApiCall }: PipelinePanelProps) {
-  const ns = (id: string) => getNodeState(id, activeNode, phase);
+  const [visitedNodes, setVisitedNodes] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (activeNode) {
+      setVisitedNodes(prev => {
+        const next = new Set(prev);
+        next.add(activeNode);
+        return next;
+      });
+    }
+  }, [activeNode]);
+
+  React.useEffect(() => {
+    if (phase === "idle") {
+      setVisitedNodes(new Set());
+    }
+  }, [phase]);
+
+  const ns = (id: string): NodeState => {
+    if (activeNode === id) return "active";
+    if (phase === "error" && activeNode === id) return "error";
+    if (phase === "completed") return "done";
+    
+    // If this node has been visited in the past and is not active, it is done
+    if (visitedNodes.has(id)) {
+      return "done";
+    }
+
+    // Fallback: gatekeeper, planner, and captain are also marked done if we have advanced beyond them
+    const ORDER = ["gatekeeper", "planner", "captain", "travel", "stay", "food", "sightseeing"];
+    const activeIdx = ORDER.indexOf(activeNode ?? "");
+    const thisIdx = ORDER.indexOf(id);
+    if (activeIdx > thisIdx && thisIdx !== -1) {
+      return "done";
+    }
+
+    return "idle";
+  };
 
   const connectorDone = (aboveId: string) => ns(aboveId) === "done";
   const connectorActive = (aboveId: string) => ns(aboveId) === "active";
 
   const wireColor = (fromId: string, toId: string) => {
-    const fromState = ns(fromId);
     const toState = ns(toId);
-    
-    if (fromState === "done" || fromState === "active" || toState === "active") {
+
+    // Special case for return path: sightseeing -> captain
+    if (fromId === "sightseeing" && toId === "captain") {
+      const allSubagentsDone = ns("travel") === "done" && ns("stay") === "done" && ns("food") === "done" && ns("sightseeing") === "done";
+      const isCompilingOrDone = phase === "compiling" || phase === "completed";
+      if (allSubagentsDone && (ns("captain") === "active" || isCompilingOrDone)) {
+        return "#10b981"; // Vibrant Green
+      }
+      return "#cbd5e1"; // Base grey
+    }
+
+    // For any other connection, it should only be green if the target node is active or done
+    if (toState === "active" || toState === "done") {
       return "#10b981"; // Vibrant Green
     }
     return "#cbd5e1"; // Base grey
   };
 
-  const isFlowing = (toId: string) => ns(toId) === "active";
+  const isFlowing = (toId: string) => {
+    // Special case for return path: sightseeing -> captain
+    if (toId === "captain_final") {
+      const allSubagentsDone = ns("travel") === "done" && ns("stay") === "done" && ns("food") === "done" && ns("sightseeing") === "done";
+      return allSubagentsDone && ns("captain") === "active";
+    }
+    return ns(toId) === "active";
+  };
 
   const FlowingWire = ({ d, targetNode }: { d: string, targetNode: string }) => {
     const active = isFlowing(targetNode);
@@ -527,7 +590,7 @@ export default function PipelinePanel({ activeNode, phase, candidates, logs, act
             </svg>
           </div>
           <div>
-            <span className="pipeline-header-title">NomadGraph</span>
+            <span className="pipeline-header-title">OdysseyAI</span>
             <span className="pipeline-header-sub"> Pipeline</span>
           </div>
         </div>
@@ -574,7 +637,7 @@ export default function PipelinePanel({ activeNode, phase, candidates, logs, act
 
               {/* Sightseeing (center: 590, 32) -> Captain (center: 340, -72, bottom: 340, -40) */}
               <path d="M 590 32 C 590 10, 340 5, 340 -15 L 340 -44" fill="none" stroke={wireColor("sightseeing", "captain")} strokeWidth="2.5" strokeLinecap="round" />
-              <FlowingWire d="M 590 32 C 590 10, 340 5, 340 -15 L 340 -44" targetNode="captain" />
+              <FlowingWire d="M 590 32 C 590 10, 340 5, 340 -15 L 340 -44" targetNode="captain_final" />
             </svg>
 
             {/* Central Log Box */}

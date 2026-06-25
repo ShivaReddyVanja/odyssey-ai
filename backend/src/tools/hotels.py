@@ -23,4 +23,6 @@ def search_accommodation(destination: str, budget_level: str) -> List[Place]:
     places = query_google_places(lat, lng, query_str, PlaceCategory.STAY, limit=10)
     if not places:
         raise RuntimeError(f"No accommodation options found for '{destination}' near coordinate ({lat}, {lng}) from Google Places API.")
+    for p in places:
+        p.destination = destination
     return places

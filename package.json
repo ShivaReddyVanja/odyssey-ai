@@ -1,0 +1,17 @@
+{
+  "name": "travel-agents-root",
+  "version": "1.0.0",
+  "description": "Root package runner for OdysseyAI travel planner monorepo",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && ./venv/bin/python -m uvicorn server:app --reload --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently --kill-others \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "test:unit": "cd backend && ./venv/bin/python -m pytest tests/unit",
+    "test:integration": "cd backend && ./venv/bin/python -m pytest tests/integration",
+    "test": "cd backend && ./venv/bin/python -m pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

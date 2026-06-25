@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NomadGraph - Agentic Multi-City Travel Planner",
+  title: "OdysseyAI - Agentic Multi-City Travel Planner",
   description: "Real-time collaborative AI agent system mapping out routes, flights, stays, activities, and dining for your customized itineraries.",
 };
 

@@ -65,6 +65,15 @@ def get_route_directions(
                 "transit_details": transit_details
             }
 
+        if data.get("status") == "ZERO_RESULTS":
+            print(f"[Routes Tool] Directions API returned ZERO_RESULTS (no road route exists) for {origin} ➔ {destination}.")
+            return {
+                "duration_minutes": -1,
+                "distance_meters": 0.0,
+                "polyline": "",
+                "transit_details": None,
+                "no_route": True
+            }
         print(f"[Routes Tool] Directions API returned status: {data.get('status')}. Using mock.")
     except Exception as e:
         print(f"[Routes Tool] Error querying Directions API: {e}. Using mock.")

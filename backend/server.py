@@ -13,7 +13,7 @@ from src.utils.logger import session_logger
 
 # Initialize FastAPI App
 app = FastAPI(
-    title="NomadGraph API",
+    title="OdysseyAI API",
     description="Real-time SSE backend for LangGraph Multi-Agent Travel Planner Engine",
     version="1.0.0"
 )
@@ -59,7 +59,7 @@ class SessionResponse(BaseModel):
 @app.get("/health")
 def health_check():
     """Health check endpoint to verify server status."""
-    return {"status": "healthy", "service": "NomadGraph API"}
+    return {"status": "healthy", "service": "OdysseyAI API"}
 
 
 @app.post("/api/plan/run")

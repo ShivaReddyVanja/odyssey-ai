@@ -1,6 +1,6 @@
-# Project Context & Memory: NomadGraph Travel Swarm
+# Project Context & Memory: OdysseyAI Travel Swarm
 
-NomadGraph is a real-time, stateful, multi-agent travel planner built with a **Python FastAPI + LangGraph** backend and a **Next.js (App Router) + TypeScript** split-screen frontend. This document preserves the key backend data schemas, agent mechanics, and frontend design patterns for rapid context retrieval.
+OdysseyAI is a real-time, stateful, multi-agent travel planner built with a **Python FastAPI + LangGraph** backend and a **Next.js (App Router) + TypeScript** split-screen frontend. This document preserves the key backend data schemas, agent mechanics, and frontend design patterns for rapid context retrieval.
 
 ---
 

@@ -1,4 +1,4 @@
-# NomadGraph Project Guide
+# OdysseyAI Project Guide
 
 Welcome! Before writing any code, please review the complete system architecture, backend data schemas, and frontend layout choices here:
 * **Project Context**: [docs/project_context.md](file:///Users/shivareddy/Projects/travel-agents/docs/project_context.md)

@@ -33,6 +33,7 @@ class Place(BaseModel):
     cost_estimate:Optional[float]
     description:str
     photo_url:Optional[str] = None
+    destination:Optional[str] = None
 
 class TransitOption(BaseModel):
     type: Literal["transit"] = "transit"

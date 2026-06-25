@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { LogMessage } from "../hooks/useEventStream";
+import { LogMessage, DestinationCardData, TransitCardData, BudgetCardData } from "../hooks/useEventStream";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
 interface ChatPanelProps {
   phase: string;
   logs: LogMessage[];
+  thinkingLogs: LogMessage[];
+  destinationCard: DestinationCardData | null;
+  transitCard: TransitCardData | null;
+  budgetCard: BudgetCardData | null;
   activeNode: string | null;
   interruptedQuestions: string[] | null;
   startPlanning: (prompt: string) => void;
@@ -98,6 +102,10 @@ const AGENT_NAMES: Record<string, string> = {
 export default function ChatPanel({
   phase,
   logs,
+  thinkingLogs,
+  destinationCard,
+  transitCard,
+  budgetCard,
   activeNode,
   interruptedQuestions,
   startPlanning,
@@ -107,13 +115,22 @@ export default function ChatPanel({
   const [inputPrompt, setInputPrompt] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+  const [isThinkingExpanded, setIsThinkingExpanded] = useState(true);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const thinkingContainerRef = useRef<HTMLDivElement>(null);
 
   /* Auto-scroll to bottom */
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs, interruptedQuestions, activeNode]);
+  }, [logs, interruptedQuestions, activeNode, thinkingLogs, destinationCard, transitCard, budgetCard]);
+
+  /* Auto-scroll the thinking drawer container */
+  useEffect(() => {
+    if (thinkingContainerRef.current) {
+      thinkingContainerRef.current.scrollTop = thinkingContainerRef.current.scrollHeight;
+    }
+  }, [thinkingLogs, isThinkingExpanded]);
 
   /* Reset input on idle */
   useEffect(() => {
@@ -257,14 +274,14 @@ export default function ChatPanel({
       {/* ── Messages Area ── */}
       <div className="chat-messages">
         {logs.length === 0 ? (
-          /* Empty state — matches the NomadGraph console aesthetic */
+          /* Empty state — matches the OdysseyAI console aesthetic */
           <div className="chat-empty-state">
             <div className="chat-empty-sparkle">
               <SparkleIcon />
             </div>
             <h3 className="chat-empty-title">Design Your Expedition</h3>
             <p className="chat-empty-desc">
-              Describe your ideal journey. The NomadGraph swarm will autonomously research, plan, and orchestrate a comprehensive itinerary.
+              Describe your ideal journey. The OdysseyAI swarm will autonomously research, plan, and orchestrate a comprehensive itinerary.
             </p>
             <p className="chat-suggestions-label">Suggested Prompts</p>
             <div className="chat-suggestions-list">
@@ -364,8 +381,329 @@ export default function ChatPanel({
           </div>
         )}
 
+        {/* Structured Destinations Card */}
+        {destinationCard && (
+          <div className="chat-message-row chat-message-row--agent" style={{ margin: "8px 0" }}>
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "500px",
+                padding: "16px",
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))",
+                border: "1px solid rgba(56, 189, 248, 0.25)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
+                color: "#f1f5f9",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "8px" }}>
+                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#38bdf8", display: "flex", alignItems: "center", gap: "6px" }}>
+                  🗺️ Destinations Decided
+                </h4>
+                <span style={{ fontSize: "11px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
+                  {destinationCard.summary_text}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                {destinationCard.destinations.map((dest, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", padding: "6px 8px", background: "rgba(255, 255, 255, 0.03)", borderRadius: "6px" }}>
+                    <span style={{ fontWeight: 500 }}>{idx + 1}. {dest.destination}</span>
+                    <span style={{ color: "#94a3b8" }}>{dest.duration_days} days</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px" }}>
+                <div style={{ fontWeight: 600, color: "#cbd5e1", marginBottom: "4px" }}>Theme: {destinationCard.theme}</div>
+                <div style={{ fontStyle: "italic", lineHeight: "1.4" }}>{destinationCard.explanation}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Structured Transit Route Card */}
+        {transitCard && (
+          <div className="chat-message-row chat-message-row--agent" style={{ margin: "8px 0" }}>
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "500px",
+                padding: "16px",
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))",
+                border: "1px solid rgba(244, 63, 94, 0.25)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
+                color: "#f1f5f9",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "8px" }}>
+                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f43f5e", display: "flex", alignItems: "center", gap: "6px" }}>
+                  ✈️ Transit Route
+                </h4>
+                <span style={{ fontSize: "11px", backgroundColor: "rgba(244, 63, 94, 0.15)", color: "#f43f5e", padding: "2px 8px", borderRadius: "12px", fontWeight: 600 }}>
+                  Route Fixed
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {transitCard.segments.map((seg, idx) => {
+                  const formatDuration = (mins: number) => {
+                    const h = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                  };
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        fontSize: "12px",
+                        padding: "8px",
+                        background: "rgba(255, 255, 255, 0.03)",
+                        borderRadius: "6px",
+                        gap: "8px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{seg.origin}</span>
+                        <span style={{ color: "#64748b" }}>➔</span>
+                        <span style={{ fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{seg.destination}</span>
+                      </div>
+                      
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            backgroundColor: seg.mode_label === "Flight" ? "rgba(56, 189, 248, 0.15)" : "rgba(34, 197, 94, 0.15)",
+                            color: seg.mode_label === "Flight" ? "#38bdf8" : "#22c55e",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {seg.mode_label || (seg.mode === "flight" ? "Flight" : "Drive")}
+                        </span>
+                        
+                        <span style={{ color: "#94a3b8", fontSize: "11px", whiteSpace: "nowrap" }}>
+                          {formatDuration(seg.duration_minutes)}
+                        </span>
+                        
+                        {seg.estimated_price > 0 ? (
+                          <span style={{ fontWeight: 600, color: "#e2e8f0", fontSize: "11px", whiteSpace: "nowrap" }}>
+                            ₹{seg.estimated_price.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#64748b", fontSize: "11px" }}>Free</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Structured Budget Summary Card */}
+        {budgetCard && (
+          <div className="chat-message-row chat-message-row--agent" style={{ margin: "8px 0" }}>
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "500px",
+                padding: "16px",
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))",
+                border: budgetCard.verdict === "within_budget" 
+                  ? "1px solid rgba(34, 197, 94, 0.35)" 
+                  : budgetCard.verdict === "over_budget" 
+                    ? "1px solid rgba(239, 68, 68, 0.35)" 
+                    : "1px solid rgba(245, 158, 11, 0.35)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
+                color: "#f1f5f9",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "8px" }}>
+                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#22c55e", display: "flex", alignItems: "center", gap: "6px" }}>
+                  💰 Estimated Budget
+                </h4>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    backgroundColor: budgetCard.verdict === "within_budget" 
+                      ? "rgba(34, 197, 94, 0.15)" 
+                      : budgetCard.verdict === "over_budget" 
+                        ? "rgba(239, 68, 68, 0.15)" 
+                        : "rgba(245, 158, 11, 0.15)",
+                    color: budgetCard.verdict === "within_budget" 
+                      ? "#22c55e" 
+                      : budgetCard.verdict === "over_budget" 
+                        ? "#ef4444" 
+                        : "#f59e0b",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    fontWeight: 600
+                  }}
+                >
+                  {budgetCard.verdict === "within_budget" ? "Within Budget" : budgetCard.verdict === "over_budget" ? "Over Budget" : "Estimate"}
+                </span>
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                  <span style={{ color: "#94a3b8" }}>Transit Cost</span>
+                  <span style={{ fontWeight: 500 }}>₹{budgetCard.transit_cost_inr.toLocaleString()}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                  <span style={{ color: "#94a3b8" }}>Accommodation</span>
+                  <span style={{ fontWeight: 500 }}>₹{budgetCard.accommodation_cost_inr.toLocaleString()}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                  <span style={{ color: "#94a3b8" }}>Food + Sightseeing</span>
+                  <span style={{ fontWeight: 500 }}>₹{budgetCard.food_activities_cost_inr.toLocaleString()}</span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                    paddingTop: "8px",
+                    marginTop: "4px",
+                    color: "#cbd5e1"
+                  }}
+                >
+                  <span>Total Estimated</span>
+                  <span style={{ color: "#22c55e" }}>₹{budgetCard.total_estimated_inr.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div
+                style={{
+                  fontSize: "12px",
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  backgroundColor: budgetCard.verdict === "within_budget" 
+                    ? "rgba(34, 197, 94, 0.1)" 
+                    : budgetCard.verdict === "over_budget" 
+                      ? "rgba(239, 68, 68, 0.1)" 
+                      : "rgba(245, 158, 11, 0.1)",
+                  color: budgetCard.verdict === "within_budget" 
+                    ? "#4ade80" 
+                    : budgetCard.verdict === "over_budget" 
+                      ? "#f87171" 
+                      : "#fbbf24",
+                  lineHeight: "1.4",
+                  fontWeight: 500,
+                }}
+              >
+                {budgetCard.verdict === "within_budget" ? "✓" : budgetCard.verdict === "over_budget" ? "⚠️" : "ℹ️"} {budgetCard.message}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div ref={chatBottomRef} />
       </div>
+
+      {/* ── Collapsible Swarm Thinking Drawer ── */}
+      {thinkingLogs.length > 0 && (
+        <div
+          className="thinking-drawer"
+          style={{
+            margin: "0 16px 12px 16px",
+            background: "rgba(30, 41, 59, 0.75)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderLeft: isActive ? "4px solid #38bdf8" : "4px solid rgba(148, 163, 184, 0.5)",
+            borderRadius: "8px",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: isActive ? "0 4px 20px rgba(56, 189, 248, 0.15)" : "none",
+            animation: isActive ? "pulse-border 2s infinite alternate" : "none",
+          }}
+        >
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes pulse-border {
+              0% { border-left-color: #38bdf8; }
+              100% { border-left-color: #f43f5e; }
+            }
+          `}} />
+          
+          <div
+            style={{
+              padding: "8px 12px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+              userSelect: "none",
+              borderBottom: isThinkingExpanded ? "1px solid rgba(255, 255, 255, 0.06)" : "none",
+              background: "rgba(15, 23, 42, 0.4)",
+            }}
+            onClick={() => setIsThinkingExpanded(!isThinkingExpanded)}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: isActive ? "#38bdf8" : "#94a3b8",
+                  display: "inline-block",
+                  animation: isActive ? "blink 1.5s infinite" : "none",
+                }}
+              />
+              <style dangerouslySetInnerHTML={{__html: `
+                @keyframes blink {
+                  0%, 100% { opacity: 0.3; }
+                  50% { opacity: 1; }
+                }
+              `}} />
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {isActive ? "Swarm Thinking Process" : "Swarm Thinking History"}
+              </span>
+            </div>
+            <span style={{ display: "flex", alignItems: "center", color: "#94a3b8", fontSize: "14px" }}>
+              {isThinkingExpanded ? "▼" : "▲"}
+            </span>
+          </div>
+
+          {isThinkingExpanded && (
+            <div
+              ref={thinkingContainerRef}
+              style={{
+                maxHeight: "140px",
+                overflowY: "auto",
+                padding: "8px 12px",
+                fontFamily: "monospace",
+                fontSize: "11px",
+                color: "#cbd5e1",
+                lineHeight: "1.5",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                backgroundColor: "rgba(15, 23, 42, 0.6)",
+              }}
+            >
+              {thinkingLogs.slice(-8).map((log) => (
+                <div key={log.id} style={{ display: "flex", gap: "8px" }}>
+                  <span style={{ color: "#64748b" }}>[{log.timestamp.toLocaleTimeString()}]</span>
+                  {log.node && (
+                    <span style={{ color: "#38bdf8", fontWeight: "bold" }}>
+                      [{AGENT_NAMES[log.node] ?? log.node}]
+                    </span>
+                  )}
+                  <span>{log.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Premium Input Bar ── */}
       <div className="chat-input-bar">
@@ -402,8 +740,10 @@ export default function ChatPanel({
         <div className="chat-input-footer">
           <div className="chat-input-footer-left">
             <span className="chat-model-badge">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9 9h6M9 12h6M9 15h4" /></svg>
-              GPT-4 Core
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              Gemini
             </span>
             <span className="chat-model-badge">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>

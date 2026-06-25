@@ -10,7 +10,7 @@ def test_health_check():
     print("\n[Test] Running health check...")
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy", "service": "NomadGraph API"}
+    assert response.json() == {"status": "healthy", "service": "OdysseyAI API"}
     print("-> Health check passed successfully!")
 
 

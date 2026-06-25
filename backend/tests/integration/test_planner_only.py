@@ -63,7 +63,7 @@ test_workflow_app = build_test_workflow()
 # 2. Setup a Mock FastAPI App with SSE Endpoints (like server.py)
 # =================================================================
 
-app = FastAPI(title="NomadGraph Planner Test API")
+app = FastAPI(title="OdysseyAI Planner Test API")
 
 class RunRequest(BaseModel):
     thread_id: Optional[str] = None
