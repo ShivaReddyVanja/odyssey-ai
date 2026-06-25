@@ -35,11 +35,25 @@ if [ ! -d "venv" ] || [ ! -f "venv/bin/activate" ]; then
     if python3 -m venv venv 2>/dev/null; then
         VENV_SUCCESS=true
         echo "Virtual environment created using python3 -m venv."
-    # Try virtualenv tool fallback
-    elif command -v virtualenv &> /dev/null; then
-        if virtualenv -p python3 venv; then
-            VENV_SUCCESS=true
-            echo "Virtual environment created using virtualenv."
+    else
+        # Add local bin to path in case virtualenv is already installed there
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # Try virtualenv tool fallback
+        if command -v virtualenv &> /dev/null; then
+            if virtualenv -p python3 venv; then
+                VENV_SUCCESS=true
+                echo "Virtual environment created using virtualenv."
+            fi
+        # Try installing virtualenv locally in user space (no sudo required)
+        else
+            echo "virtualenv not found. Attempting to install virtualenv via pip3 --user..."
+            if command -v pip3 &>/dev/null && pip3 install --user virtualenv 2>/dev/null; then
+                if command -v virtualenv &>/dev/null && virtualenv -p python3 venv; then
+                    VENV_SUCCESS=true
+                    echo "Virtual environment created using user-installed virtualenv."
+                fi
+            fi
         fi
     fi
     
