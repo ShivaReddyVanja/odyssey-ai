@@ -497,6 +497,25 @@ function CentralLogBox({ activeApiCall, logs, phase }: { activeApiCall: ApiCallE
 
 export default function PipelinePanel({ activeNode, phase, candidates, logs, activeApiCall }: PipelinePanelProps) {
   const [visitedNodes, setVisitedNodes] = React.useState<Set<string>>(new Set());
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(1);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width } = entry.contentRect;
+        const minWidthNeeded = 720;
+        if (width < minWidthNeeded) {
+          setScale(Math.max(0.45, width / minWidthNeeded));
+        } else {
+          setScale(1);
+        }
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => {
     if (activeNode) {
@@ -579,29 +598,20 @@ export default function PipelinePanel({ activeNode, phase, candidates, logs, act
   };
 
   return (
-    <div className="pipeline-panel-root">
+    <div className="pipeline-panel-root" ref={containerRef}>
       <div className="pipeline-grid-bg" />
 
-      <div className="pipeline-header">
-        <div className="pipeline-header-left">
-          <div className="pipeline-header-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-          </div>
-          <div>
-            <span className="pipeline-header-title">OdysseyAI</span>
-            <span className="pipeline-header-sub"> Pipeline</span>
-          </div>
-        </div>
-        <div className={`pipeline-phase-badge ${phaseIsActive(phase) ? "pipeline-phase-badge--active" : phase === "completed" ? "pipeline-phase-badge--done" : phase === "error" ? "pipeline-phase-badge--error" : ""}`}>
-          {phaseIsActive(phase) && <span className="pipeline-phase-dot" />}
-          {phaseLabel(phase)}
-        </div>
-      </div>
 
-      <div className="pipeline-body">
-        <div className="pipeline-chain">
+
+      <div className="pipeline-body" style={{ overflow: "hidden" }}>
+        <div
+          className="pipeline-chain"
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "center center",
+            transition: "transform 0.1s ease-out",
+          }}
+        >
           {/* Gatekeeper */}
           <NodeCard node={MAIN_NODES[0]} state={ns("gatekeeper")} size="large" />
           <Connector active={connectorActive("gatekeeper")} done={connectorDone("gatekeeper")} />

@@ -271,6 +271,25 @@ a {
   z-index: 20;
 }
 
+.view-toggle-bar-bottom {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-solid);
+  border-radius: 99px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.04);
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .view-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -279,7 +298,7 @@ a {
   font-size: 11px;
   font-weight: 600;
   color: var(--color-text-muted);
-  border-radius: 6px;
+  border-radius: 99px;
   transition: background 0.14s, color 0.14s;
 }
 
@@ -898,7 +917,7 @@ a {
 }
 
 .chat-empty-title {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--color-text);
   margin-bottom: 8px;
@@ -907,10 +926,10 @@ a {
 }
 
 .chat-empty-desc {
-  font-size: 13px;
+  font-size: 11.5px;
   color: var(--color-text-muted);
   line-height: 1.6;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   max-width: 340px;
 }
 
@@ -963,7 +982,7 @@ a {
 }
 
 .chat-suggestion-text {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--color-text);
   font-weight: 500;
   line-height: 1.45;
@@ -1546,6 +1565,54 @@ a {
 .custom-map-pin-inner:hover { transform: scale(1.18); }
 
 /* --------------------------------------------------------------------------
+   Chat Input Plug Connector
+   -------------------------------------------------------------------------- */
+
+.chat-plug-connector {
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 20px;
+  background-color: #1e293b;
+  border-radius: 3px 0 0 3px;
+  border-left: 2px solid #38bdf8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-plug-connector.state-idle {
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+}
+
+.chat-plug-connector.state-active {
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7), 0 0 20px rgba(244, 63, 94, 0.4);
+}
+
+.chat-plug-connector-pins {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-plug-connector-pin {
+  width: 4px;
+  height: 2px;
+  background-color: #94a3b8;
+  border-radius: 1px 0 0 1px;
+}
+
+.chat-plug-connector-pin:first-child {
+  margin-bottom: 2px;
+}
+
+/* --------------------------------------------------------------------------
    Responsive Fallback
    -------------------------------------------------------------------------- */
 
@@ -1581,6 +1648,52 @@ a {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
+  }
+
+  .chat-plug-connector {
+    left: 50%;
+    top: -8px;
+    transform: translateX(-50%) rotate(90deg);
+  }
+
+  .chat-input-textarea {
+    font-size: 12px;
+  }
+  .chat-input-textarea::placeholder {
+    font-size: 11.5px;
+  }
+  .chat-suggestion-text {
+    font-size: 11px;
+  }
+  .chat-suggestion-chip {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .chat-input-hint {
+    font-size: 9.5px;
+  }
+  .chat-input-hint kbd {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .chat-input-textarea {
+    font-size: 11.5px;
+  }
+  .chat-input-textarea::placeholder {
+    font-size: 10.5px;
+  }
+  .chat-suggestion-text {
+    font-size: 10px;
+  }
+  .chat-suggestion-chip {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .chat-input-hint {
+    display: none;
   }
 }
 
@@ -2062,4 +2175,34 @@ a {
 
 .rate-limit-modal-btn:hover {
   background: #0f172a;
+}
+
+/* --------------------------------------------------------------------------
+   Desktop View Required Overlay (Screen Width < 1024px)
+   -------------------------------------------------------------------------- */
+
+.mobile-block-overlay {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .mobile-block-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    text-align: center;
+  }
+
+  /* Hide the rest of the application when screen width is < 1024px */
+  .app-root,
+  svg[ref="svgRef"] {
+    display: none !important;
+  }
 }
