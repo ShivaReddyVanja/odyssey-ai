@@ -23,10 +23,36 @@ git pull origin main
 # 2. Update Backend Virtual Env & Dependencies
 echo "Updating backend Python virtual environment..."
 cd backend
-if [ ! -d "venv" ]; then
+
+# Recreate venv if it does not exist or is in a broken/incomplete state
+if [ ! -d "venv" ] || [ ! -f "venv/bin/activate" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    rm -rf venv
+    VENV_SUCCESS=false
+    
+    # Try standard venv module
+    if python3 -m venv venv 2>/dev/null; then
+        VENV_SUCCESS=true
+        echo "Virtual environment created using python3 -m venv."
+    # Try virtualenv tool fallback
+    elif command -v virtualenv &> /dev/null; then
+        if virtualenv -p python3 venv; then
+            VENV_SUCCESS=true
+            echo "Virtual environment created using virtualenv."
+        fi
+    fi
+    
+    if [ "$VENV_SUCCESS" = false ]; then
+        rm -rf venv
+        echo "========================================="
+        echo "ERROR: Failed to create virtual environment."
+        echo "Please install python3-venv or virtualenv on the server."
+        echo "Suggested Command: sudo apt-get update && sudo apt-get install -y python3-venv"
+        echo "========================================="
+        exit 1
+    fi
 fi
+
 source venv/bin/activate
 echo "Installing requirements..."
 pip install -r requirements.txt
